@@ -15,8 +15,8 @@ describe("Flipen Integration Tests", function () {
 
   // Environment variables with fallbacks
   const SUBSCRIPTION_ID = parseInt(process.env.VRF_SUBSCRIPTION_ID || "1");
-  const KEY_HASH = process.env.VRF_KEY_HASH_ALFAJORES || "0x6e75b569a01ef56d18cab6a8e71e6600d6ce853834d4a5748b720d06f878b3a4";
-  const VRF_COORDINATOR = process.env.VRF_COORDINATOR_ALFAJORES || "0x8C7382F9D8f56b33781fE506E897a4F1e2d17255";
+  const KEY_HASH = process.env.VRF_KEY_HASH_SEPOLIA || "0x6e75b569a01ef56d18cab6a8e71e6600d6ce853834d4a5748b720d06f878b3a4";
+  const VRF_COORDINATOR = process.env.VRF_COORDINATOR_SEPOLIA || "0x8C7382F9D8f56b33781fE506E897a4F1e2d17255";
 
   beforeEach(async function () {
     const signers = await ethers.getSigners();

@@ -19,6 +19,22 @@ abstract contract AdminFunctions is
     }
 
     /**
+     * @dev Update VRF configuration
+     */
+    function updateVRFConfig(
+        uint256 subscriptionId,
+        bytes32 keyHash,
+        uint32 callbackGasLimit,
+        uint16 requestConfirmations
+    ) external onlyOwner {
+        vrfConfig.subscriptionId = subscriptionId;
+        vrfConfig.keyHash = keyHash;
+        vrfConfig.callbackGasLimit = callbackGasLimit;
+        vrfConfig.requestConfirmations = requestConfirmations;
+        emit VRFConfigUpdated(subscriptionId, keyHash, callbackGasLimit);
+    }
+
+    /**
      * @dev Update cUSD token address
      */
     function updateCUSD(address _cUSD) external onlyOwner {
@@ -74,13 +90,6 @@ abstract contract AdminFunctions is
      */
     function unpause() external onlyOwner {
         _unpause();
-    }
-
-    /**
-     * @dev Get current bet limits
-     */
-    function getBetLimits() external view returns (uint256 min, uint256 max) {
-        return (minBetAmount, maxBetAmount);
     }
 
     /**

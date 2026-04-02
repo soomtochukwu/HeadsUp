@@ -4,6 +4,8 @@ pragma solidity ^0.8.28;
 import "./FlipenStorage.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+import "@chainlink/contracts/src/v0.8/vrf/dev/IVRFCoordinatorV2Plus.sol";
 
 abstract contract GameLogic is
     FlipenStorage,
@@ -16,32 +18,33 @@ abstract contract GameLogic is
     /**
      * @dev Main function for players to flip coin with native CELO
      */
-    function flipCoin(uint8 choice, uint256 randomNumber) external payable nonReentrant {
-        _playGame(choice, randomNumber, msg.value, address(0));
+    function flipCoin(uint8 choice) external payable nonReentrant {
+        _playGame(choice, msg.value, address(0));
     }
 
     /**
      * @dev Main function for players to flip coin with cUSD or other ERC20
      */
-    function flipCoinERC20(uint8 choice, uint256 randomNumber, uint256 amount, address token) external nonReentrant {
+    function flipCoinERC20(uint8 choice, uint256 amount, address token) external nonReentrant {
         require(token == cUSD, "Only cUSD supported for now");
         
         // Transfer tokens from player to contract
         require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Token transfer failed");
         
-        _playGame(choice, randomNumber, amount, token);
+        _playGame(choice, amount, token);
     }
 
     /**
-     * @dev Internal game logic shared between CELO and ERC20 bets
+     * @dev Internal game logic to request VRF
      */
-    function _playGame(uint8 choice, uint256 randomNumber, uint256 amount, address token) internal {
+    function _playGame(uint8 choice, uint256 amount, address token) internal {
         require(
             choice == 0 || choice == 1,
             "Invalid choice: must be 0 (tails) or 1 (heads)"
         );
         require(amount >= minBetAmount, "Bet amount too low");
         require(amount <= maxBetAmount, "Bet amount too high");
+        require(vrfConfig.subscriptionId != 0, "VRF Subscription not set");
         
         uint256 potentialPayout = (amount * PAYOUT_PERCENTAGE) / BASIS_POINTS;
         
@@ -56,79 +59,94 @@ abstract contract GameLogic is
                 "Insufficient contract token balance"
             );
         }
-        
-        require(randomNumber > 0, "Random number must be greater than 0");
 
         // Generate unique request ID
-        uint256 requestId = gameCounter;
+        uint256 gameId = gameCounter;
         gameCounter++;
 
-        // Generate coin flip result (0 or 1) using modulo
-        uint8 coinResult = uint8(randomNumber % 2);
+        // Request VRF
+        uint256 vrfRequestId = IVRFCoordinatorV2Plus(address(s_vrfCoordinator)).requestRandomWords(
+            VRFV2PlusClient.RandomWordsRequest({
+                keyHash: vrfConfig.keyHash,
+                subId: vrfConfig.subscriptionId,
+                requestConfirmations: vrfConfig.requestConfirmations,
+                callbackGasLimit: vrfConfig.callbackGasLimit,
+                numWords: 1,
+                extraArgs: VRFV2PlusClient._argsToBytes(
+                    VRFV2PlusClient.ExtraArgsV1({nativePayment: true}) // Pay VRF in CELO
+                )
+            })
+        );
 
-        // Store game request
-        gameRequests[requestId] = GameRequest({
+        // Map VRF request to Game ID
+        vrfToGameRequestId[vrfRequestId] = gameId;
+
+        // Store game request as PENDING
+        gameRequests[gameId] = GameRequest({
             player: msg.sender,
             amount: amount,
             playerChoice: choice,
-            fulfilled: true,
-            won: coinResult == choice,
+            status: GameStatus.PENDING,
+            won: false,
             timestamp: block.timestamp,
-            randomNumber: randomNumber,
-            coinResult: coinResult,
+            randomNumber: 0,
+            coinResult: 0,
             token: token
         });
 
-        playerGames[msg.sender].push(requestId);
+        playerGames[msg.sender].push(gameId);
         totalGamesPlayed++;
         totalVolume += amount;
 
-        // Emit game requested event
-        emit GameRequested(requestId, msg.sender, amount, choice, block.timestamp, token);
-
-        // Process game result immediately
-        uint256 payout = 0;
-        if (coinResult == choice) {
-            // Player won
-            payout = potentialPayout;
-
-            // Transfer winnings to player
-            if (token == address(0)) {
-                (bool success, ) = payable(msg.sender).call{value: payout}("");
-                require(success, "CELO payout transfer failed");
-            } else {
-                require(IERC20(token).transfer(msg.sender, payout), "Token payout transfer failed");
-            }
-        }
-
-        // Emit comprehensive game result event
-        emit GameResult(
-            requestId,
-            msg.sender,
-            amount,
-            choice,
-            coinResult,
-            coinResult == choice,
-            payout,
-            randomNumber,
-            block.timestamp,
-            token
-        );
-        
-        emit GameCompleted(requestId, msg.sender, coinResult == choice, payout, token);
+        emit GameRequested(gameId, vrfRequestId, msg.sender, amount, choice, block.timestamp, token);
     }
 
     /**
-     * @dev Get the random number used for a specific game
+     * @dev Callback handler for VRF fulfillment
      */
-    function getGameRandomness(uint256 requestId) 
-        external 
-        view 
-        returns (uint256 randomNumber, uint8 coinResult) 
-    {
-        GameRequest memory game = gameRequests[requestId];
-        require(game.fulfilled, "Game not found or not fulfilled");
-        return (game.randomNumber, game.coinResult);
+    function _fulfillGame(uint256 vrfRequestId, uint256 randomNumber) internal {
+        uint256 gameId = vrfToGameRequestId[vrfRequestId];
+        GameRequest storage game = gameRequests[gameId];
+        
+        require(game.player != address(0), "Game not found");
+        require(game.status == GameStatus.PENDING, "Game already fulfilled");
+
+        uint8 coinResult = uint8(randomNumber % 2);
+        bool won = (coinResult == game.playerChoice);
+        uint256 payout = 0;
+
+        game.randomNumber = randomNumber;
+        game.coinResult = coinResult;
+        game.won = won;
+        game.status = GameStatus.FULFILLED;
+
+        if (won) {
+            payout = (game.amount * PAYOUT_PERCENTAGE) / BASIS_POINTS;
+            
+            if (game.token == address(0)) {
+                (bool success, ) = payable(game.player).call{value: payout}("");
+                // If transfer fails, we don't revert (to avoid blocking VRF), but we log it
+                if (!success) game.status = GameStatus.CANCELLED;
+            } else {
+                bool success = IERC20(game.token).transfer(game.player, payout);
+                if (!success) game.status = GameStatus.CANCELLED;
+            }
+        }
+
+        emit GameResult(
+            gameId,
+            game.player,
+            game.amount,
+            game.playerChoice,
+            coinResult,
+            won,
+            payout,
+            randomNumber,
+            block.timestamp,
+            game.token
+        );
+        
+        emit GameCompleted(gameId, game.player, won, payout, game.token);
     }
 
     /**
@@ -150,7 +168,7 @@ abstract contract GameLogic is
     }
 
     /**
-     * @dev Get contract statistics (simplified for native only, or we can expand)
+     * @dev Get contract statistics
      */
     function getContractStats()
         external
@@ -166,14 +184,7 @@ abstract contract GameLogic is
             totalGamesPlayed,
             totalVolume,
             address(this).balance,
-            0 // Simplified for now
+            0
         );
-    }
-
-    /**
-     * @dev Get current game counter
-     */
-    function getCurrentGameCounter() external view returns (uint256) {
-        return gameCounter;
     }
 }

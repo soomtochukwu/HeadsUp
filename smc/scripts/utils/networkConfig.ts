@@ -2,32 +2,32 @@ export interface NetworkConfig {
   vrfCoordinator: string;
   keyHash: string;
   name: string;
-  vrfFee: string; // Fee for direct funding
+  vrfFee: string; // Fee for direct funding (legacy)
 }
 
 export const networkConfigs: Record<string, NetworkConfig> = {
   localhost: {
-    vrfCoordinator: "0x8C7382F9D8f56b33781fE506E897a4F1e2d17255", // Mock for testing
-    keyHash: "0x6e75b569a01ef56d18cab6a8e71e6600d6ce853834d4a5748b720d06f878b3a4",
-    vrfFee: "0.01", // 0.01 ETH for testing
+    vrfCoordinator: "0x5CE8D5A2BC84beb22a398CCA51996F7930313D61", // Sepolia mock
+    keyHash: "0x1770bdc7eec7771f7ba4ffd640f34260d7f095b79c92d34a5b2551d6f6cfd2be",
+    vrfFee: "0.01",
     name: "Localhost"
   },
   hardhat: {
-    vrfCoordinator: "0x8C7382F9D8f56b33781fE506E897a4F1e2d17255", // Mock for testing
-    keyHash: "0x6e75b569a01ef56d18cab6a8e71e6600d6ce853834d4a5748b720d06f878b3a4",
-    vrfFee: "0.01", // 0.01 ETH for testing
+    vrfCoordinator: "0x5CE8D5A2BC84beb22a398CCA51996F7930313D61", // Sepolia mock
+    keyHash: "0x1770bdc7eec7771f7ba4ffd640f34260d7f095b79c92d34a5b2551d6f6cfd2be",
+    vrfFee: "0.01",
     name: "Hardhat"
   },
-  alfajores: {
-    vrfCoordinator: process.env.VRF_COORDINATOR_ALFAJORES || "0x8C7382F9D8f56b33781fE506E897a4F1e2d17255",
-    keyHash: process.env.VRF_KEY_HASH_ALFAJORES || "0x6e75b569a01ef56d18cab6a8e71e6600d6ce853834d4a5748b720d06f878b3a4",
-    vrfFee: process.env.VRF_FEE_ALFAJORES || "0.1", // 0.1 CELO
-    name: "Celo Alfajores Testnet"
+  sepolia: {
+    vrfCoordinator: process.env.VRF_COORDINATOR_SEPOLIA || "0x5CE8D5A2BC84beb22a398CCA51996F7930313D61",
+    keyHash: process.env.VRF_KEY_HASH_SEPOLIA || "0x1770bdc7eec7771f7ba4ffd640f34260d7f095b79c92d34a5b2551d6f6cfd2be",
+    vrfFee: process.env.VRF_FEE_SEPOLIA || "0.1",
+    name: "Celo Sepolia Testnet"
   },
   celo: {
-    vrfCoordinator: process.env.VRF_COORDINATOR_CELO || "0xAE975071Be8F8eE67addBC1A82488F1C24858067",
-    keyHash: process.env.VRF_KEY_HASH_CELO || "0xff8dedfbfa60af186cf3c830acbc32c05aae823045ae5ea7da1e45fbfaba4f92",
-    vrfFee: process.env.VRF_FEE_CELO || "0.1", // 0.1 CELO
+    vrfCoordinator: process.env.VRF_COORDINATOR_CELO || "0x56449d011824C867D7028401349982f465823677",
+    keyHash: process.env.VRF_KEY_HASH_CELO || "0x6e75b569a01ef56d18cab6a8e71e6600d6ce853834d4a5748b720d06f878b3a4",
+    vrfFee: process.env.VRF_FEE_CELO || "0.1",
     name: "Celo Mainnet"
   }
 };

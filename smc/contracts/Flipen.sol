@@ -2,30 +2,31 @@
 pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+import "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 import "./lib/FlipenStorage.sol";
 import "./lib/GameLogic.sol";
 import "./lib/AdminFunctions.sol";
 
 /**
  * @title Flipen
- * @dev Simple 50/50 coin flip game contract using frontend-generated randomness
+ * @dev Simple 50/50 coin flip game contract using Chainlink VRF V2.5
  * @notice This contract allows users to play coin flip games with CELO and cUSD
  * Features:
- * - Frontend-generated randomness for immediate game resolution
+ * - Chainlink VRF V2.5 for provably fair randomness
  * - 97.5% payout rate (2.5% house edge)
  * - Upgradeable using OpenZeppelin's Transparent Proxy pattern
- * - Modular architecture with separate storage, logic, and admin contracts
- * - Enhanced events for frontend tracking
  * - Optimized for MiniPay (cUSD support)
  */
 contract Flipen is
     Initializable,
+    VRFConsumerBaseV2Plus,
     FlipenStorage,
     GameLogic,
     AdminFunctions
 {
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
+    constructor(address _vrfCoordinator) VRFConsumerBaseV2Plus(_vrfCoordinator) {
         _disableInitializers();
     }
 
@@ -45,7 +46,14 @@ contract Flipen is
      * @dev Get contract version
      */
     function version() external pure returns (string memory) {
-        return "4.0.0";
+        return "5.0.0 (Chainlink VRF)";
+    }
+
+    /**
+     * @dev Callback function called by VRF Coordinator
+     */
+    function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
+        _fulfillGame(requestId, randomWords[0]);
     }
 
     /**
@@ -64,7 +72,6 @@ contract Flipen is
 
     /**
      * @dev Get comprehensive game information
-     * @param requestId The game request ID
      */
     function getGameInfo(uint256 requestId) 
         external 
@@ -81,7 +88,7 @@ contract Flipen is
             game,
             game.randomNumber,
             game.coinResult,
-            game.fulfilled
+            game.status == GameStatus.FULFILLED
         );
     }
 }

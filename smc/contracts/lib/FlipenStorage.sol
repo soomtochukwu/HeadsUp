@@ -4,21 +4,26 @@ pragma solidity ^0.8.28;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 abstract contract FlipenStorage is Initializable {
+    enum GameStatus { PENDING, FULFILLED, CANCELLED }
+
     // Game state
     struct GameRequest {
         address player;
         uint256 amount;
         uint8 playerChoice; // 0 for tails, 1 for heads
-        bool fulfilled;
+        GameStatus status;
         bool won;
         uint256 timestamp;
-        uint256 randomNumber; // Store the random number from frontend
+        uint256 randomNumber; // Store the random number from Chainlink
         uint8 coinResult; // Store the final coin flip result
         address token; // Address of the token used (address(0) for native CELO)
     }
 
     mapping(uint256 => GameRequest) internal gameRequests;
     mapping(address => uint256[]) internal playerGames;
+    
+    // VRF tracking
+    mapping(uint256 => uint256) public vrfToGameRequestId;
     
     // Game counter for generating unique request IDs
     uint256 internal gameCounter;
@@ -40,9 +45,19 @@ abstract contract FlipenStorage is Initializable {
     // Token configuration
     address public cUSD;
 
+    // VRF Configuration
+    struct VRFConfig {
+        uint256 subscriptionId;
+        bytes32 keyHash;
+        uint32 callbackGasLimit;
+        uint16 requestConfirmations;
+    }
+    VRFConfig public vrfConfig;
+
     // Events for Frontend Tracking
     event GameRequested(
         uint256 indexed requestId,
+        uint256 vrfRequestId,
         address indexed player,
         uint256 amount,
         uint8 playerChoice,
@@ -74,12 +89,21 @@ abstract contract FlipenStorage is Initializable {
     event FundsWithdrawn(address indexed owner, address token, uint256 amount);
     event BetLimitsUpdated(uint256 minBet, uint256 maxBet);
     event TokenUpdated(address indexed token);
+    event VRFConfigUpdated(uint256 subId, bytes32 keyHash, uint32 gasLimit);
 
     function __FlipenStorage_init() internal onlyInitializing {
         minBetAmount = 0.01 ether; 
         maxBetAmount = 100 ether; 
         gameCounter = 1; 
-        // Alfajores cUSD address as default: 0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1
+        // Celo Sepolia cUSD address: 0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1
         cUSD = 0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1; 
+        
+        // Default VRF Config for Celo Sepolia
+        vrfConfig = VRFConfig({
+            subscriptionId: 0, // Must be set by admin
+            keyHash: 0x1770bdc7eec7771f7ba4ffd640f34260d7f095b79c92d34a5b2551d6f6cfd2be,
+            callbackGasLimit: 200000,
+            requestConfirmations: 3
+        });
     }
 }
