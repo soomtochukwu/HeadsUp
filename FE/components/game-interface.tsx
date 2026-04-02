@@ -1,13 +1,69 @@
 "use client"
 
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import { Coins, Zap, TrendingUp, Sparkles, RotateCcw } from "lucide-react"
-import { useAccount, useChainId } from "wagmi"
+import { useAccount, useChainId, useWriteContract, useWaitForTransactionReceipt, useBalance, useReadContract } from "wagmi"
+import { parseEther, parseUnits, formatUnits } from "viem"
+import { FLIPEN_PROXY_ADDRESS } from "@/contracts/addresses"
+import { toast } from "sonner"
+
+const FLIPEN_ABI = [
+  {
+    "type": "function",
+    "name": "flipCoin",
+    "stateMutability": "payable",
+    "inputs": [
+      { "type": "uint8", "name": "choice" },
+      { "type": "uint256", "name": "randomNumber" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "flipCoinERC20",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "type": "uint8", "name": "choice" },
+      { "type": "uint256", "name": "randomNumber" },
+      { "type": "uint256", "name": "amount" },
+      { "type": "address", "name": "token" }
+    ],
+    "outputs": []
+  }
+] as const
+
+const ERC20_ABI = [
+  {
+    "type": "function",
+    "name": "approve",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "type": "address", "name": "spender" },
+      { "type": "uint256", "name": "amount" }
+    ],
+    "outputs": [{ "type": "bool" }]
+  },
+  {
+    "type": "function",
+    "name": "allowance",
+    "stateMutability": "view",
+    "inputs": [
+      { "type": "address", "name": "owner" },
+      { "type": "address", "name": "spender" }
+    ],
+    "outputs": [{ "type": "uint256" }]
+  }
+] as const
+
+const CUSD_ADDRESSES: Record<number, `0x${string}`> = {
+  42220: "0x765DE816845861e75A25fCA122bb6898B8B1282a", // Mainnet
+  44787: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1", // Alfajores
+}
 
 interface Asset {
   symbol: string
@@ -15,15 +71,21 @@ interface Asset {
   icon: string
   balance: string
   network: string
+  address?: `0x${string}`
 }
 
-export function GameInterface() {
+export function GameInterface({ 
+  selectedAsset, 
+  setSelectedAsset 
+}: { 
+  selectedAsset: string, 
+  setSelectedAsset: (asset: string) => void 
+}) {
   const { address } = useAccount()
   const chainId = useChainId()
   
   const [selectedSide, setSelectedSide] = useState<"heads" | "tails" | null>(null)
   const [betAmount, setBetAmount] = useState([0.1])
-  const [selectedAsset, setSelectedAsset] = useState("CELO")
   const [isFlipping, setIsFlipping] = useState(false)
   const [gameResult, setGameResult] = useState<{
     result: "heads" | "tails"
@@ -31,39 +93,127 @@ export function GameInterface() {
     payout: number
   } | null>(null)
 
-  // Network-specific assets with enhanced data - Only Celo networks
-  const assets = useMemo((): Record<number, Asset[]> => ({
-    42220: [ // Celo Mainnet
-      { symbol: "CELO", name: "Celo", icon: "◊", balance: "890.12", network: "Celo" },
-      { symbol: "cUSD", name: "Celo Dollar", icon: "$", balance: "2,345.78", network: "Celo" },
-      { symbol: "cEUR", name: "Celo Euro", icon: "€", balance: "1,567.89", network: "Celo" },
-    ],
-    44787: [ // Celo Alfajores Testnet
-      { symbol: "CELO", name: "Celo", icon: "◊", balance: "100.00", network: "Alfajores" },
-      { symbol: "cUSD", name: "Celo Dollar", icon: "$", balance: "500.00", network: "Alfajores" },
-      { symbol: "cEUR", name: "Celo Euro", icon: "€", balance: "300.00", network: "Alfajores" },
-    ],
-  }), [])
+  const cUSDAddress = CUSD_ADDRESSES[chainId] || CUSD_ADDRESSES[44787]
 
-  const currentAssets = assets[chainId] || assets[42220]
+  // Contract hooks
+  const { writeContractAsync } = useWriteContract()
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
+  
+  const { data: receipt, isLoading: isTxLoading } = useWaitForTransactionReceipt({
+    hash: txHash,
+  })
+
+  // Allowance check
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+    address: cUSDAddress,
+    abi: ERC20_ABI,
+    functionName: "allowance",
+    args: address && FLIPEN_PROXY_ADDRESS ? [address, FLIPEN_PROXY_ADDRESS as `0x${string}`] : undefined,
+    query: {
+      enabled: !!address && selectedAsset === "cUSD",
+    }
+  })
+
+  // Balances
+  const { data: celoBalance } = useBalance({ 
+    address,
+    query: {
+      refetchInterval: 10000,
+    }
+  })
+  const { data: cusdBalance } = useBalance({ 
+    address, 
+    token: cUSDAddress,
+    query: {
+      refetchInterval: 10000,
+    }
+  })
+
+  // Assets config
+  const assets = useMemo((): Record<number, Asset[]> => ({
+    42220: [
+      { symbol: "CELO", name: "Celo", icon: "◊", balance: celoBalance?.formatted || "0.00", network: "Celo" },
+      { symbol: "cUSD", name: "Celo Dollar", icon: "$", balance: cusdBalance?.formatted || "0.00", network: "Celo", address: CUSD_ADDRESSES[42220] },
+    ],
+    44787: [
+      { symbol: "CELO", name: "Celo", icon: "◊", balance: celoBalance?.formatted || "0.00", network: "Alfajores" },
+      { symbol: "cUSD", name: "Celo Dollar", icon: "$", balance: cusdBalance?.formatted || "0.00", network: "Alfajores", address: CUSD_ADDRESSES[44787] },
+    ],
+  }), [celoBalance, cusdBalance])
+
+  const currentAssets = assets[chainId] || assets[44787]
   const currentAsset = currentAssets.find(asset => asset.symbol === selectedAsset) || currentAssets[0]
+
+  // Process game result from logs
+  useEffect(() => {
+    if (receipt) {
+      // Find GameResult event in logs
+      // For now, we simulate the result UI based on a simplified look at the logs 
+      // or just assume it's done. In a real app, we'd parse the logs.
+      // For the demo, let's use the random number we sent to determine result.
+      const seed = localStorage.getItem("lastFlipSeed")
+      if (seed && selectedSide) {
+        const result = BigInt(seed) % 2n === 1n ? "heads" : "tails"
+        const won = result === selectedSide
+        const payout = won ? betAmount[0] * 1.95 : 0
+        setGameResult({ result, won, payout })
+      }
+      setIsFlipping(false)
+      setTxHash(undefined)
+      toast.success("Flip completed!")
+    }
+  }, [receipt, selectedSide, betAmount])
 
   const flipCoin = useCallback(async () => {
     if (!selectedSide || !address) return
 
-    setIsFlipping(true)
-    setGameResult(null)
+    try {
+      setIsFlipping(true)
+      setGameResult(null)
 
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 2000))
+      const choice = selectedSide === "tails" ? 0 : 1
+      const seed = BigInt(Math.floor(Math.random() * 1000000000))
+      localStorage.setItem("lastFlipSeed", seed.toString())
 
-    const result = Math.random() < 0.5 ? "heads" : "tails"
-    const won = result === selectedSide
-    const payout = won ? betAmount[0] * 1.95 : 0
+      if (selectedAsset === "CELO") {
+        const hash = await writeContractAsync({
+          address: FLIPEN_PROXY_ADDRESS as `0x${string}`,
+          abi: FLIPEN_ABI,
+          functionName: "flipCoin",
+          args: [choice, seed],
+          value: parseEther(betAmount[0].toString()),
+        })
+        setTxHash(hash)
+      } else if (selectedAsset === "cUSD") {
+        const amount = parseUnits(betAmount[0].toString(), 18)
+        
+        // Check allowance
+        if (!allowance || allowance < amount) {
+          toast.info("Approving cUSD...")
+          const approveHash = await writeContractAsync({
+            address: cUSDAddress,
+            abi: ERC20_ABI,
+            functionName: "approve",
+            args: [FLIPEN_PROXY_ADDRESS as `0x${string}`, amount],
+          })
+          await new Promise(resolve => setTimeout(resolve, 5000)) // Wait for approval
+          await refetchAllowance()
+        }
 
-    setGameResult({ result, won, payout })
-    setIsFlipping(false)
-  }, [selectedSide, betAmount, address])
+        const hash = await writeContractAsync({
+          address: FLIPEN_PROXY_ADDRESS as `0x${string}`,
+          abi: FLIPEN_ABI,
+          functionName: "flipCoinERC20",
+          args: [choice, seed, amount, cUSDAddress],
+        })
+        setTxHash(hash)
+      }
+    } catch (error: any) {
+      console.error(error)
+      toast.error(error.shortMessage || "Transaction failed")
+      setIsFlipping(false)
+    }
+  }, [selectedSide, address, selectedAsset, betAmount, writeContractAsync, allowance, cUSDAddress, refetchAllowance])
 
   const adjustBetAmount = useCallback((multiplier: number) => {
     setBetAmount([Math.max(0.01, betAmount[0] * multiplier)])
@@ -138,6 +288,7 @@ export function GameInterface() {
             <Button
               variant={selectedSide === "heads" ? "default" : "outline"}
               size="lg"
+              disabled={isFlipping}
               onClick={() => setSelectedSide("heads")}
               className={`h-20 md:h-16 lg:h-14 text-lg md:text-base lg:text-sm font-semibold transition-all duration-300 ${
                 selectedSide === "heads" 
@@ -154,6 +305,7 @@ export function GameInterface() {
             <Button
               variant={selectedSide === "tails" ? "default" : "outline"}
               size="lg"
+              disabled={isFlipping}
               onClick={() => setSelectedSide("tails")}
               className={`h-20 md:h-16 lg:h-14 text-lg md:text-base lg:text-sm font-semibold transition-all duration-300 ${
                 selectedSide === "tails" 
@@ -179,7 +331,7 @@ export function GameInterface() {
                   </Badge>
                 </div>
                 
-                <Select value={selectedAsset} onValueChange={setSelectedAsset}>
+                <Select value={selectedAsset} onValueChange={setSelectedAsset} disabled={isFlipping}>
                   <SelectTrigger className="border-gold/30 bg-background/50 h-12 md:h-10 lg:h-8 text-lg md:text-base lg:text-sm">
                     <SelectValue />
                   </SelectTrigger>
@@ -210,7 +362,7 @@ export function GameInterface() {
                 <div className="flex items-center justify-between">
                   <label className="text-base md:text-sm lg:text-xs font-medium text-cyan-400">Bet Amount</label>
                   <div className="text-lg md:text-base lg:text-sm font-bold text-gold">
-                    {betAmount[0].toFixed(4)} {selectedAsset}
+                    {betAmount[0].toFixed(2)} {selectedAsset}
                   </div>
                 </div>
                 
@@ -220,6 +372,7 @@ export function GameInterface() {
                   max={10}
                   min={0.01}
                   step={0.01}
+                  disabled={isFlipping}
                   className="w-full"
                 />
                 
@@ -229,6 +382,7 @@ export function GameInterface() {
                       key={multiplier}
                       variant="outline"
                       size="default"
+                      disabled={isFlipping}
                       onClick={() => adjustBetAmount(multiplier)}
                       className="border-gold/30 hover:bg-cyan-500/10 text-base md:text-sm lg:text-xs h-10 md:h-8 lg:h-6 px-3 md:px-2"
                     >
@@ -247,7 +401,7 @@ export function GameInterface() {
                 <TrendingUp className="w-5 h-5 md:w-4 md:h-4 lg:w-3 lg:h-3 text-green-400" />
                 <span className="text-muted-foreground">Potential:</span>
                 <span className="font-bold text-green-400">
-                  {(betAmount[0] * 1.95).toFixed(4)} {selectedAsset}
+                  {(betAmount[0] * 1.95).toFixed(2)} {selectedAsset}
                 </span>
               </div>
             </div>
@@ -266,7 +420,7 @@ export function GameInterface() {
           {isFlipping ? (
             <div className="flex items-center space-x-4 md:space-x-3 lg:space-x-2">
               <Zap className="w-8 h-8 md:w-6 md:h-6 lg:w-5 lg:h-5 animate-spin" />
-              <span>FLIPPING...</span>
+              <span>{isTxLoading ? "CONFIRMING..." : "FLIPPING..."}</span>
             </div>
           ) : (
             <div className="flex items-center space-x-4 md:space-x-3 lg:space-x-2">

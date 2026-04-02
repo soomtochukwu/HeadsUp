@@ -20,15 +20,8 @@ import { WagmiProvider } from "wagmi";
 const { wallets } = getDefaultWallets();
 
 const config = getDefaultConfig({
-  appName: "HeadsUp",
+  appName: "Flipen",
   projectId: "7b4405ad426eb6d4e981a8570a10337c",
-  wallets: [
-    {
-      groupName: "Other",
-      wallets: [metaMaskWallet, okxWallet, trustWallet],
-    },
-    ...wallets,
-  ],
   chains: [
     celo,
     celoAlfajores,

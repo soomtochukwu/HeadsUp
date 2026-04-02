@@ -51,12 +51,12 @@ export default function AboutPage() {
           <main className="flex-1 container mx-auto px-3 sm:px-4 py-4">
             <div className="max-w-4xl mx-auto">
               <h1 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent">
-                About HeadsUp
+                About Flipen
               </h1>
               <div className="bg-card/50 backdrop-blur-sm border border-gold rounded-2xl p-6">
                 <div className="space-y-4 text-muted-foreground">
                   <p className="text-lg">
-                    HeadsUp is the most trusted Web3 coin flip platform, offering provably fair 50/50 games across
+                    Flipen is the most trusted Web3 coin flip platform, offering provably fair 50/50 games across
                     multiple EVM networks with golden opportunities for every player.
                   </p>
                   <h3 className="text-xl font-semibold text-foreground">Key Features:</h3>

@@ -2,24 +2,25 @@
 pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "./lib/HeadsUpStorage.sol";
+import "./lib/FlipenStorage.sol";
 import "./lib/GameLogic.sol";
 import "./lib/AdminFunctions.sol";
 
 /**
- * @title HeadsUp
+ * @title Flipen
  * @dev Simple 50/50 coin flip game contract using frontend-generated randomness
- * @notice This contract allows users to play coin flip games with CELO tokens
+ * @notice This contract allows users to play coin flip games with CELO and cUSD
  * Features:
  * - Frontend-generated randomness for immediate game resolution
  * - 97.5% payout rate (2.5% house edge)
  * - Upgradeable using OpenZeppelin's Transparent Proxy pattern
  * - Modular architecture with separate storage, logic, and admin contracts
  * - Enhanced events for frontend tracking
+ * - Optimized for MiniPay (cUSD support)
  */
-contract HeadsUp is
+contract Flipen is
     Initializable,
-    HeadsUpStorage,
+    FlipenStorage,
     GameLogic,
     AdminFunctions
 {
@@ -35,7 +36,7 @@ contract HeadsUp is
     function initialize(
         address initialOwner
     ) public initializer {
-        __HeadsUpStorage_init();
+        __FlipenStorage_init();
         __GameLogic_init();
         __AdminFunctions_init(initialOwner);
     }
@@ -44,7 +45,7 @@ contract HeadsUp is
      * @dev Get contract version
      */
     function version() external pure returns (string memory) {
-        return "3.0.0";
+        return "4.0.0";
     }
 
     /**

@@ -26,6 +26,7 @@ interface HeaderProps {
   walletAddress: string
   setWalletAddress: (address: string) => void
   setIsCommentsSidebarOpen: (open: boolean) => void
+  selectedAsset: string
 }
 
 const networks = [
@@ -43,6 +44,7 @@ export function Header({
   walletAddress,
   setWalletAddress,
   setIsCommentsSidebarOpen,
+  selectedAsset,
 }: HeaderProps) {
   const [showWalletOptions, setShowWalletOptions] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
@@ -105,11 +107,11 @@ export function Header({
           <div className="flex items-center justify-between">
             {/* Logo */}
             <Link href="/" className="flex items-center space-x-2 flex-shrink-0">
-              <div className="w-8 h-8 sm:w-8 sm:h-8 bg-gold-gradient rounded-full flex items-center justify-center animate-pulse-gold">
-                <Coins className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              <div className="w-8 h-8 sm:w-8 sm:h-8 bg-white rounded-full flex items-center justify-center overflow-hidden border border-gold">
+                <img src="/favicon.ico" alt="Flipen Logo" className="w-6 h-6 object-contain" />
               </div>
               <div className="flex flex-row items-end gap-1">
-                <span className="text-xl sm:text-2xl font-bold text-gold-gradient font-mono">HeadsUp</span>
+                <span className="text-xl sm:text-2xl font-bold text-gold-gradient font-mono">Flipen</span>
                 <span className="opacity-75 text-xs text-gray-300 p-1 bg-gold-dark/30 rounded-sm">MVP</span>
               </div>
             </Link>
@@ -165,7 +167,7 @@ export function Header({
                 <div className="flex items-center space-x-3 bg-card/50 border border-gold rounded-lg px-4 py-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                   <span className="text-gold font-semibold text-sm">
-                    {balance} {selectedNetworkData?.symbol}
+                    {balance} {selectedAsset}
                   </span>
                   <span className="text-xs text-muted-foreground font-mono">{walletAddress}</span>
                   <Button
@@ -220,10 +222,10 @@ export function Header({
           {/* Sidebar Header */}
           <div className="flex items-center justify-between p-4 border-b border-gold/20">
             <Link href="/" className="flex items-center space-x-2" onClick={() => setIsMobileSidebarOpen(false)}>
-              <div className="w-6 h-6 bg-gold-gradient rounded-full flex items-center justify-center">
-                <Coins className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center overflow-hidden border border-gold">
+                <img src="/favicon.ico" alt="Flipen Logo" className="w-6 h-6 object-contain" />
               </div>
-              <span className="text-lg font-bold text-gold-gradient font-mono">HeadsUp</span>
+              <span className="text-lg font-bold text-gold-gradient font-mono">Flipen</span>
             </Link>
             <Button
               variant="ghost"
@@ -292,7 +294,7 @@ export function Header({
                   <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                   <div className="flex-1 min-w-0">
                     <div className="text-gold font-semibold text-sm">
-                      {balance} {selectedNetworkData?.symbol}
+                      {balance} {selectedAsset}
                     </div>
                     <div className="text-xs text-muted-foreground font-mono truncate">
                       {walletAddress}

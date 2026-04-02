@@ -33,22 +33,22 @@ async function main(): Promise<void> {
   const [deployer]: HardhatEthersSigner[] = await ethers.getSigners();
   console.log("Deploying contracts with the account:", deployer.address);
 
-  // Deploy HeadsUp as upgradeable proxy
-  const HeadsUp = await ethers.getContractFactory("HeadsUp");
+  // Deploy Flipen as upgradeable proxy
+  const Flipen = await ethers.getContractFactory("Flipen");
 
-  console.log("Deploying HeadsUp proxy...");
-  const headsUp = await upgrades.deployProxy(
-    HeadsUp,
+  console.log("Deploying Flipen proxy...");
+  const flipen = await upgrades.deployProxy(
+    Flipen,
     [deployer.address],
     {
       initializer: "initialize",
     }
   );
 
-  await headsUp.waitForDeployment();
-  const proxyAddress: string = await headsUp.getAddress();
+  await flipen.waitForDeployment();
+  const proxyAddress: string = await flipen.getAddress();
 
-  console.log("HeadsUp Proxy Contract Deployed at:", proxyAddress);
+  console.log("Flipen Proxy Contract Deployed at:", proxyAddress);
   console.log("");
   console.log(">>>DEPLOYER:", deployer.address);
   console.log("");
@@ -97,8 +97,8 @@ export const contractAddresses: ContractAddresses = {
 };
 
 // Export individual addresses for convenience
-export const HEADSUP_PROXY_ADDRESS = "${proxyAddress}";
-export const HEADSUP_IMPLEMENTATION_ADDRESS = "${implementationAddress}";
+export const FLIPEN_PROXY_ADDRESS = "${proxyAddress}";
+export const FLIPEN_IMPLEMENTATION_ADDRESS = "${implementationAddress}";
 
 export default contractAddresses;
 `;
@@ -120,7 +120,7 @@ export default contractAddresses;
   console.log(`Contract addresses also saved as JSON to: ${jsonFilePath}`);
 
   // Extract and save contract ABI
-  const contractABI = HeadsUp.interface.formatJson();
+  const contractABI = Flipen.interface.formatJson();
   const abiFilePath = path.join(
     addressesDir,
     `${network.name}-abi.json`
@@ -151,16 +151,16 @@ export default contractAddresses;
   // Test the deployed contract
   console.log("Testing deployed contract...");
   try {
-    const headsUpInstance = await ethers.getContractAt(
-      "HeadsUp",
+    const flipenInstance = await ethers.getContractAt(
+      "Flipen",
       proxyAddress,
       deployer
     );
     
-    const version = await headsUpInstance.version();
+    const version = await flipenInstance.version();
     console.log("Contract version:", version);
     
-    const owner = await headsUpInstance.owner();
+    const owner = await flipenInstance.owner();
     console.log("Contract owner:", owner);
     
     console.log("✅ Contract deployment and testing successful!");

@@ -1,14 +1,14 @@
 import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { HeadsUp, MockVRFCoordinator } from "../typechain-types";
+import { Flipen, MockVRFCoordinator } from "../typechain-types";
 import * as dotenv from "dotenv";
 
 // Load environment variables
 dotenv.config();
 
-describe("HeadsUp Gas Optimization Tests", function () {
-  let headsUp: HeadsUp;
+describe("Flipen Gas Optimization Tests", function () {
+  let flipen: Flipen;
   let owner: HardhatEthersSigner;
   let player: HardhatEthersSigner;
   let mockVRFCoordinator: MockVRFCoordinator;
@@ -27,9 +27,9 @@ describe("HeadsUp Gas Optimization Tests", function () {
     mockVRFCoordinator = await MockVRFCoordinatorFactory.deploy() as MockVRFCoordinator;
     await mockVRFCoordinator.waitForDeployment();
 
-    const HeadsUpFactory = await ethers.getContractFactory("HeadsUp");
-    headsUp = await upgrades.deployProxy(
-      HeadsUpFactory,
+    const FlipenFactory = await ethers.getContractFactory("Flipen");
+    flipen = await upgrades.deployProxy(
+      FlipenFactory,
       [
         owner.address,
         await mockVRFCoordinator.getAddress(),
@@ -37,11 +37,11 @@ describe("HeadsUp Gas Optimization Tests", function () {
         KEY_HASH,
       ],
       { initializer: "initialize" }
-    ) as HeadsUp;
-    await headsUp.waitForDeployment();
+    ) as Flipen;
+    await flipen.waitForDeployment();
 
     await owner.sendTransaction({
-      to: await headsUp.getAddress(),
+      to: await flipen.getAddress(),
       value: ethers.parseEther("1000"),
     });
   });
@@ -50,7 +50,7 @@ describe("HeadsUp Gas Optimization Tests", function () {
     const betAmount = ethers.parseEther("1");
     const choice = 1;
 
-    const tx = await headsUp
+    const tx = await flipen
       .connect(player)
       .flipCoin(choice, { value: betAmount });
     const receipt = await tx.wait();
@@ -63,7 +63,7 @@ describe("HeadsUp Gas Optimization Tests", function () {
     const betAmount = ethers.parseEther("1");
     const choice = 1;
 
-    await headsUp.connect(player).flipCoin(choice, { value: betAmount });
+    await flipen.connect(player).flipCoin(choice, { value: betAmount });
 
     const tx = await mockVRFCoordinator.fulfillRandomWords(1, [1]);
     const receipt = await tx.wait();
@@ -79,7 +79,7 @@ describe("HeadsUp Gas Optimization Tests", function () {
     let totalGasUsed = BigInt(0);
 
     for (let i = 0; i < numGames; i++) {
-      const tx = await headsUp
+      const tx = await flipen
         .connect(player)
         .flipCoin(choice, { value: betAmount });
       const receipt = await tx.wait();
@@ -100,7 +100,7 @@ describe("HeadsUp Gas Optimization Tests", function () {
   it("Should have efficient gas usage for admin functions", async function () {
     // Test withdrawFunds gas usage
     const withdrawAmount = ethers.parseEther("10");
-    const withdrawTx = await headsUp.connect(owner).withdrawFunds(withdrawAmount);
+    const withdrawTx = await flipen.connect(owner).withdrawFunds(withdrawAmount);
     const withdrawReceipt = await withdrawTx.wait();
     
     console.log(`withdrawFunds gas used: ${withdrawReceipt?.gasUsed}`);
@@ -109,7 +109,7 @@ describe("HeadsUp Gas Optimization Tests", function () {
     // Test updateBetLimits gas usage
     const newMinBet = ethers.parseEther("0.02");
     const newMaxBet = ethers.parseEther("200");
-    const updateTx = await headsUp.connect(owner).updateBetLimits(newMinBet, newMaxBet);
+    const updateTx = await flipen.connect(owner).updateBetLimits(newMinBet, newMaxBet);
     const updateReceipt = await updateTx.wait();
     
     console.log(`updateBetLimits gas used: ${updateReceipt?.gasUsed}`);
@@ -122,14 +122,14 @@ describe("HeadsUp Gas Optimization Tests", function () {
     const choice = 1;
 
     // Make a game first
-    await headsUp.connect(player).flipCoin(choice, { value: betAmount });
+    await flipen.connect(player).flipCoin(choice, { value: betAmount });
 
     // Test view functions (these should be free when called as view)
-    const stats = await headsUp.getContractStats();
-    const betLimits = await headsUp.getBetLimits();
-    const vrfSettings = await headsUp.getVRFSettings();
-    const playerGames = await headsUp.getPlayerGames(player.address);
-    const gameDetails = await headsUp.getGameDetails(1);
+    const stats = await flipen.getContractStats();
+    const betLimits = await flipen.getBetLimits();
+    const vrfSettings = await flipen.getVRFSettings();
+    const playerGames = await flipen.getPlayerGames(player.address);
+    const gameDetails = await flipen.getGameDetails(1);
 
     // Verify the calls returned data (indicating they work)
     expect(stats.length).to.equal(4);
@@ -147,9 +147,9 @@ describe("HeadsUp Gas Optimization Tests", function () {
     
     console.log(`MockVRFCoordinator deployment gas: ${mockDeployReceipt?.gasUsed}`);
 
-    const HeadsUpFactory = await ethers.getContractFactory("HeadsUp");
-    const newHeadsUp = await upgrades.deployProxy(
-      HeadsUpFactory,
+    const FlipenFactory = await ethers.getContractFactory("Flipen");
+    const newFlipen = await upgrades.deployProxy(
+      FlipenFactory,
       [
         owner.address,
         await newMockVRF.getAddress(),
@@ -159,11 +159,11 @@ describe("HeadsUp Gas Optimization Tests", function () {
       { initializer: "initialize" }
     );
     
-    const headsUpDeployReceipt = await newHeadsUp.deploymentTransaction()?.wait();
-    console.log(`HeadsUp proxy deployment gas: ${headsUpDeployReceipt?.gasUsed}`);
+    const flipenDeployReceipt = await newFlipen.deploymentTransaction()?.wait();
+    console.log(`Flipen proxy deployment gas: ${flipenDeployReceipt?.gasUsed}`);
     
     // Deployment should be reasonable (these are rough estimates)
     expect(mockDeployReceipt?.gasUsed).to.be.lt(1000000); // Under 1M gas
-    expect(headsUpDeployReceipt?.gasUsed).to.be.lt(2000000); // Under 2M gas
+    expect(flipenDeployReceipt?.gasUsed).to.be.lt(2000000); // Under 2M gas
   });
 });

@@ -1,14 +1,14 @@
 import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { HeadsUp, MockVRFCoordinator } from "../typechain-types";
+import { Flipen, MockVRFCoordinator } from "../typechain-types";
 import * as dotenv from "dotenv";
 
 // Load environment variables
 dotenv.config();
 
-describe("HeadsUp Integration Tests", function () {
-  let headsUp: HeadsUp;
+describe("Flipen Integration Tests", function () {
+  let flipen: Flipen;
   let owner: HardhatEthersSigner;
   let players: HardhatEthersSigner[];
   let mockVRFCoordinator: MockVRFCoordinator;
@@ -30,10 +30,10 @@ describe("HeadsUp Integration Tests", function () {
     mockVRFCoordinator = await MockVRFCoordinatorFactory.deploy() as MockVRFCoordinator;
     await mockVRFCoordinator.waitForDeployment();
 
-    // Deploy HeadsUp
-    const HeadsUpFactory = await ethers.getContractFactory("HeadsUp");
-    headsUp = await upgrades.deployProxy(
-      HeadsUpFactory,
+    // Deploy Flipen
+    const FlipenFactory = await ethers.getContractFactory("Flipen");
+    flipen = await upgrades.deployProxy(
+      FlipenFactory,
       [
         owner.address,
         await mockVRFCoordinator.getAddress(),
@@ -41,12 +41,12 @@ describe("HeadsUp Integration Tests", function () {
         KEY_HASH,
       ],
       { initializer: "initialize" }
-    ) as HeadsUp;
-    await headsUp.waitForDeployment();
+    ) as Flipen;
+    await flipen.waitForDeployment();
 
     // Fund contract
     await owner.sendTransaction({
-      to: await headsUp.getAddress(),
+      to: await flipen.getAddress(),
       value: ethers.parseEther("1000"),
     });
   });
@@ -58,14 +58,14 @@ describe("HeadsUp Integration Tests", function () {
     // All players place bets
     for (let i = 0; i < players.length; i++) {
       gamePromises.push(
-        headsUp.connect(players[i]).flipCoin(i % 2, { value: betAmount })
+        flipen.connect(players[i]).flipCoin(i % 2, { value: betAmount })
       );
     }
 
     await Promise.all(gamePromises);
 
     // Check total games
-    const [totalGames, volume] = await headsUp.getContractStats();
+    const [totalGames, volume] = await flipen.getContractStats();
     expect(totalGames).to.equal(players.length);
     expect(volume).to.equal(betAmount * BigInt(players.length));
 
@@ -76,7 +76,7 @@ describe("HeadsUp Integration Tests", function () {
 
     // Verify game outcomes
     for (let i = 1; i <= players.length; i++) {
-      const game = await headsUp.getGameDetails(i);
+      const game = await flipen.getGameDetails(i);
       expect(game.fulfilled).to.be.true;
 
       // Players with matching choices should win
@@ -87,20 +87,20 @@ describe("HeadsUp Integration Tests", function () {
 
   it("Should maintain correct contract balance through multiple games", async function () {
     const initialBalance = await ethers.provider.getBalance(
-      await headsUp.getAddress()
+      await flipen.getAddress()
     );
     const betAmount = ethers.parseEther("10");
 
     // Player 1 loses
-    await headsUp.connect(players[0]).flipCoin(1, { value: betAmount });
+    await flipen.connect(players[0]).flipCoin(1, { value: betAmount });
     await mockVRFCoordinator.fulfillRandomWords(1, [0]); // Tails, player chose heads
 
     // Player 2 wins
-    await headsUp.connect(players[1]).flipCoin(1, { value: betAmount });
+    await flipen.connect(players[1]).flipCoin(1, { value: betAmount });
     await mockVRFCoordinator.fulfillRandomWords(2, [1]); // Heads, player chose heads
 
     const finalBalance = await ethers.provider.getBalance(
-      await headsUp.getAddress()
+      await flipen.getAddress()
     );
 
     // Contract should have gained from losing bet and lost from winning bet
@@ -116,14 +116,14 @@ describe("HeadsUp Integration Tests", function () {
     const betAmount = ethers.parseEther("1");
 
     // Place a bet
-    await headsUp.connect(players[0]).flipCoin(1, { value: betAmount });
+    await flipen.connect(players[0]).flipCoin(1, { value: betAmount });
 
     // Upgrade contract
-    const HeadsUpV2Factory = await ethers.getContractFactory("HeadsUp");
+    const FlipenV2Factory = await ethers.getContractFactory("Flipen");
     const upgraded = await upgrades.upgradeProxy(
-      await headsUp.getAddress(),
-      HeadsUpV2Factory
-    ) as HeadsUp;
+      await flipen.getAddress(),
+      FlipenV2Factory
+    ) as Flipen;
 
     // Fulfill the game after upgrade
     await mockVRFCoordinator.fulfillRandomWords(1, [1]);
@@ -145,7 +145,7 @@ describe("HeadsUp Integration Tests", function () {
       const choice = i % 2; // Alternate between heads and tails
       
       gamePromises.push(
-        headsUp.connect(players[playerIndex]).flipCoin(choice, { value: betAmount })
+        flipen.connect(players[playerIndex]).flipCoin(choice, { value: betAmount })
       );
     }
 
@@ -153,7 +153,7 @@ describe("HeadsUp Integration Tests", function () {
     await Promise.all(gamePromises);
 
     // Verify all games were created
-    const [totalGames, volume] = await headsUp.getContractStats();
+    const [totalGames, volume] = await flipen.getContractStats();
     expect(totalGames).to.equal(numGames);
     expect(volume).to.equal(betAmount * BigInt(numGames));
 
@@ -170,34 +170,34 @@ describe("HeadsUp Integration Tests", function () {
 
     // Verify all games are fulfilled
     for (let i = 1; i <= numGames; i++) {
-      const game = await headsUp.getGameDetails(i);
+      const game = await flipen.getGameDetails(i);
       expect(game.fulfilled).to.be.true;
     }
   });
 
   it("Should handle edge case: contract balance depletion and recovery", async function () {
     // Drain most of the contract balance
-    const contractBalance = await ethers.provider.getBalance(await headsUp.getAddress());
+    const contractBalance = await ethers.provider.getBalance(await flipen.getAddress());
     const withdrawAmount = contractBalance - ethers.parseEther("10");
     
-    await headsUp.connect(owner).withdrawFunds(withdrawAmount);
+    await flipen.connect(owner).withdrawFunds(withdrawAmount);
 
     // Try to place a large bet that would exceed available balance for payout
     const largeBet = ethers.parseEther("15");
     await expect(
-      headsUp.connect(players[0]).flipCoin(1, { value: largeBet })
+      flipen.connect(players[0]).flipCoin(1, { value: largeBet })
     ).to.be.revertedWith("Insufficient contract balance for potential payout");
 
     // Refund the contract
     await owner.sendTransaction({
-      to: await headsUp.getAddress(),
+      to: await flipen.getAddress(),
       value: ethers.parseEther("100"),
     });
 
     // Now the large bet should work
     await expect(
-      headsUp.connect(players[0]).flipCoin(1, { value: largeBet })
-    ).to.emit(headsUp, "GameRequested");
+      flipen.connect(players[0]).flipCoin(1, { value: largeBet })
+    ).to.emit(flipen, "GameRequested");
   });
 
   it("Should maintain game history integrity across multiple operations", async function () {
@@ -205,9 +205,9 @@ describe("HeadsUp Integration Tests", function () {
     const player = players[0];
 
     // Player makes multiple games
-    await headsUp.connect(player).flipCoin(1, { value: betAmount });
-    await headsUp.connect(player).flipCoin(0, { value: betAmount });
-    await headsUp.connect(player).flipCoin(1, { value: betAmount });
+    await flipen.connect(player).flipCoin(1, { value: betAmount });
+    await flipen.connect(player).flipCoin(0, { value: betAmount });
+    await flipen.connect(player).flipCoin(1, { value: betAmount });
 
     // Fulfill games with different outcomes
     await mockVRFCoordinator.fulfillRandomWords(1, [1]); // Win
@@ -215,13 +215,13 @@ describe("HeadsUp Integration Tests", function () {
     await mockVRFCoordinator.fulfillRandomWords(3, [0]); // Lose
 
     // Check player's game history
-    const playerGames = await headsUp.getPlayerGames(player.address);
+    const playerGames = await flipen.getPlayerGames(player.address);
     expect(playerGames.length).to.equal(3);
 
     // Verify individual game details
-    const game1 = await headsUp.getGameDetails(1);
-    const game2 = await headsUp.getGameDetails(2);
-    const game3 = await headsUp.getGameDetails(3);
+    const game1 = await flipen.getGameDetails(1);
+    const game2 = await flipen.getGameDetails(2);
+    const game3 = await flipen.getGameDetails(3);
 
     expect(game1.won).to.be.true;  // Choice 1, result 1
     expect(game2.won).to.be.false; // Choice 0, result 1
@@ -237,18 +237,18 @@ describe("HeadsUp Integration Tests", function () {
     const betAmount = ethers.parseEther("1");
 
     // Place some bets
-    await headsUp.connect(players[0]).flipCoin(1, { value: betAmount });
-    await headsUp.connect(players[1]).flipCoin(0, { value: betAmount });
+    await flipen.connect(players[0]).flipCoin(1, { value: betAmount });
+    await flipen.connect(players[1]).flipCoin(0, { value: betAmount });
 
     // Admin updates bet limits while games are pending
     const newMinBet = ethers.parseEther("0.02");
     const newMaxBet = ethers.parseEther("200");
-    await headsUp.connect(owner).updateBetLimits(newMinBet, newMaxBet);
+    await flipen.connect(owner).updateBetLimits(newMinBet, newMaxBet);
 
     // Admin updates VRF settings
     const newSubscriptionId = 2;
     const newKeyHash = "0x1234567890123456789012345678901234567890123456789012345678901234";
-    await headsUp.connect(owner).updateVRFSettings(
+    await flipen.connect(owner).updateVRFSettings(
       newSubscriptionId,
       newKeyHash,
       200000
@@ -259,14 +259,14 @@ describe("HeadsUp Integration Tests", function () {
     await mockVRFCoordinator.fulfillRandomWords(2, [0]);
 
     // Verify games were fulfilled correctly
-    const game1 = await headsUp.getGameDetails(1);
-    const game2 = await headsUp.getGameDetails(2);
+    const game1 = await flipen.getGameDetails(1);
+    const game2 = await flipen.getGameDetails(2);
     expect(game1.fulfilled).to.be.true;
     expect(game2.fulfilled).to.be.true;
 
     // New games should use updated settings
-    const [, , , ] = await headsUp.getVRFSettings();
-    const [minBet, maxBet] = await headsUp.getBetLimits();
+    const [, , , ] = await flipen.getVRFSettings();
+    const [minBet, maxBet] = await flipen.getBetLimits();
     expect(minBet).to.equal(newMinBet);
     expect(maxBet).to.equal(newMaxBet);
   });

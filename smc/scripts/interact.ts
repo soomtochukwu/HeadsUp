@@ -26,14 +26,14 @@ async function main(): Promise<void> {
   }
   
   const [signer]: HardhatEthersSigner[] = await ethers.getSigners();
-  const headsUp: Contract = await ethers.getContractAt("HeadsUp", PROXY_ADDRESS, signer);
+  const flipen: Contract = await ethers.getContractAt("Flipen", PROXY_ADDRESS, signer);
   
-  console.log("Interacting with HeadsUp contract at:", PROXY_ADDRESS);
+  console.log("Interacting with Flipen contract at:", PROXY_ADDRESS);
   console.log("Using account:", signer.address);
   
   try {
     // Get contract stats
-    const stats: ContractStats = await headsUp.getContractStats();
+    const stats: ContractStats = await flipen.getContractStats();
     console.log("\nContract Statistics:");
     console.log("Total Games:", stats.totalGames.toString());
     console.log("Total Volume:", ethers.formatEther(stats.volume), "CELO");
@@ -41,13 +41,13 @@ async function main(): Promise<void> {
     console.log("Platform Fees:", ethers.formatEther(stats.fees), "CELO");
     
     // Get bet limits
-    const [minBet, maxBet] = await headsUp.getBetLimits();
+    const [minBet, maxBet] = await flipen.getBetLimits();
     console.log("\nBet Limits:");
     console.log("Minimum Bet:", ethers.formatEther(minBet), "CELO");
     console.log("Maximum Bet:", ethers.formatEther(maxBet), "CELO");
     
     // Get VRF settings
-    const [subscriptionId, keyHash, callbackGasLimit, requestConfirmations] = await headsUp.getVRFSettings();
+    const [subscriptionId, keyHash, callbackGasLimit, requestConfirmations] = await flipen.getVRFSettings();
     console.log("\nVRF Settings:");
     console.log("Subscription ID:", subscriptionId.toString());
     console.log("Key Hash:", keyHash);
@@ -60,7 +60,7 @@ async function main(): Promise<void> {
     const betAmount = ethers.parseEther("0.1"); // 0.1 CELO
     const choice = 1; // 1 for heads, 0 for tails
     
-    const tx = await headsUp.flipCoin(choice, { value: betAmount });
+    const tx = await flipen.flipCoin(choice, { value: betAmount });
     console.log("Transaction hash:", tx.hash);
     
     const receipt = await tx.wait();

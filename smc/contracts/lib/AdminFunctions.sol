@@ -3,10 +3,11 @@ pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import "./HeadsUpStorage.sol";
+import "./FlipenStorage.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 abstract contract AdminFunctions is
-    HeadsUpStorage,
+    FlipenStorage,
     OwnableUpgradeable,
     PausableUpgradeable
 {
@@ -18,49 +19,31 @@ abstract contract AdminFunctions is
     }
 
     /**
-     * @dev Withdraw platform fees
+     * @dev Update cUSD token address
      */
-    function withdrawFunds(uint256 amount) external onlyOwner {
-        require(amount <= platformFees, "Amount exceeds available fees");
-        require(amount > 0, "Amount must be greater than 0");
-
-        platformFees -= amount;
-        (bool success, ) = payable(owner()).call{value: amount}("");
-        require(success, "Transfer failed");
-
-        emit FundsWithdrawn(owner(), amount);
+    function updateCUSD(address _cUSD) external onlyOwner {
+        require(_cUSD != address(0), "Invalid address");
+        cUSD = _cUSD;
+        emit TokenUpdated(_cUSD);
     }
 
     /**
-     * @dev Withdraw all platform fees
+     * @dev Withdraw CELO from contract
      */
-    function withdrawAllFunds() external onlyOwner {
-        uint256 amount = platformFees;
-        require(amount > 0, "No funds to withdraw");
-
-        platformFees = 0;
+    function withdrawCELO(uint256 amount) external onlyOwner {
+        require(amount <= address(this).balance, "Insufficient balance");
         (bool success, ) = payable(owner()).call{value: amount}("");
         require(success, "Transfer failed");
-
-        emit FundsWithdrawn(owner(), amount);
+        emit FundsWithdrawn(owner(), address(0), amount);
     }
 
     /**
-     * @dev Transfer funds to specific address
+     * @dev Withdraw ERC20 tokens from contract
      */
-    function transferFunds(
-        address payable recipient,
-        uint256 amount
-    ) external onlyOwner {
-        require(recipient != address(0), "Invalid recipient");
-        require(amount <= platformFees, "Amount exceeds available fees");
-        require(amount > 0, "Amount must be greater than 0");
-
-        platformFees -= amount;
-        (bool success, ) = recipient.call{value: amount}("");
-        require(success, "Transfer failed");
-
-        emit FundsWithdrawn(recipient, amount);
+    function withdrawToken(address token, uint256 amount) external onlyOwner {
+        require(token != address(0), "Use withdrawCELO");
+        require(IERC20(token).transfer(owner(), amount), "Transfer failed");
+        emit FundsWithdrawn(owner(), token, amount);
     }
 
     /**
@@ -105,6 +88,5 @@ abstract contract AdminFunctions is
      */
     function fundContract() external payable onlyOwner {
         require(msg.value > 0, "Must send some funds");
-        // Funds are automatically added to contract balance
     }
 }

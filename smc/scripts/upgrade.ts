@@ -56,15 +56,15 @@ async function upgradeContract() {
   console.log("");
 
   // Get the new contract factory
-  const HeadsUpV2 = await ethers.getContractFactory("HeadsUp");
+  const FlipenV2 = await ethers.getContractFactory("Flipen");
 
-  console.log("Upgrading HeadsUp proxy to new implementation...");
+  console.log("Upgrading Flipen proxy to new implementation...");
 
   // Upgrade the proxy to the new implementation
-  const upgraded = await upgrades.upgradeProxy(proxyAddress, HeadsUpV2);
+  const upgraded = await upgrades.upgradeProxy(proxyAddress, FlipenV2);
   await upgraded.waitForDeployment();
 
-  console.log("HeadsUp Proxy upgraded successfully!");
+  console.log("Flipen Proxy upgraded successfully!");
   console.log("Proxy Address (unchanged):", proxyAddress);
   console.log("");
 
@@ -118,8 +118,8 @@ export const contractAddresses: ContractAddresses = {
 };
 
 // Export individual addresses for convenience
-export const HEADSUP_PROXY_ADDRESS = "${proxyAddress}";
-export const HEADSUP_IMPLEMENTATION_ADDRESS = "${newImplementationAddress}";
+export const FLIPEN_PROXY_ADDRESS = "${proxyAddress}";
+export const FLIPEN_IMPLEMENTATION_ADDRESS = "${newImplementationAddress}";
 
 export default contractAddresses;
 `;
@@ -143,7 +143,7 @@ export default contractAddresses;
   );
 
   // Extract and save updated contract ABI
-  const contractABI = HeadsUpV2.interface.formatJson();
+  const contractABI = FlipenV2.interface.formatJson();
   const abiFilePath = path.join(
     addressesDir,
     `${network.name}-abi.json`

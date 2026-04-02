@@ -24,7 +24,7 @@ export const contractAddresses: ContractAddresses = {
 };
 
 // Export individual addresses for convenience
-export const HEADSUP_PROXY_ADDRESS = "0xC469e7aE4aD962c30c7111dc580B4adbc7E914DD";
-export const HEADSUP_IMPLEMENTATION_ADDRESS = "0x73511669fd4dE447feD18BB79bAFeAC93aB7F31f";
+export const FLIPEN_PROXY_ADDRESS = "0xC469e7aE4aD962c30c7111dc580B4adbc7E914DD";
+export const FLIPEN_IMPLEMENTATION_ADDRESS = "0x73511669fd4dE447feD18BB79bAFeAC93aB7F31f";
 
 export default contractAddresses;
