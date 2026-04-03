@@ -1,200 +1,182 @@
 "use client"
 
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, TrendingUp, TrendingDown } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs"
+import { ExternalLink, History, Loader2, User, Globe, RefreshCcw } from "lucide-react"
+import { useAccount, usePublicClient } from "wagmi"
+import { formatUnits, decodeEventLog } from "viem"
+import { FLIPEN_ADDRESSES } from "@/contracts/addresses"
+import SEPOLIA_ABI from "@/contracts/sepolia-abi.json"
+import MAINNET_ABI from "@/contracts/celo-abi.json"
 
 export function GameHistory() {
-  const gameHistory = [
-    {
-      id: 1,
-      timestamp: "2024-01-15 14:30:25",
-      bet: "0.5 ETH",
-      side: "heads",
-      result: "heads",
-      outcome: "WIN",
-      payout: "0.975 ETH",
-      profit: "+0.475 ETH",
-    },
-    {
-      id: 2,
-      timestamp: "2024-01-15 14:28:12",
-      bet: "1.2 USDC",
-      side: "tails",
-      result: "heads",
-      outcome: "LOSE",
-      payout: "0",
-      profit: "-1.2 USDC",
-    },
-    {
-      id: 3,
-      timestamp: "2024-01-15 14:25:45",
-      bet: "0.1 ETH",
-      side: "heads",
-      result: "heads",
-      outcome: "WIN",
-      payout: "0.195 ETH",
-      profit: "+0.095 ETH",
-    },
-    {
-      id: 4,
-      timestamp: "2024-01-15 14:23:18",
-      bet: "2.0 USDT",
-      side: "tails",
-      result: "heads",
-      outcome: "LOSE",
-      payout: "0",
-      profit: "-2.0 USDT",
-    },
-    {
-      id: 5,
-      timestamp: "2024-01-15 14:20:33",
-      bet: "0.8 ETH",
-      side: "tails",
-      result: "tails",
-      outcome: "WIN",
-      payout: "1.56 ETH",
-      profit: "+0.76 ETH",
-    },
-    {
-      id: 6,
-      timestamp: "2024-01-15 14:18:07",
-      bet: "0.3 ETH",
-      side: "heads",
-      result: "tails",
-      outcome: "LOSE",
-      payout: "0",
-      profit: "-0.3 ETH",
-    },
-    {
-      id: 7,
-      timestamp: "2024-01-15 14:15:22",
-      bet: "1.5 USDC",
-      side: "tails",
-      result: "tails",
-      outcome: "WIN",
-      payout: "2.925 USDC",
-      profit: "+1.425 USDC",
-    },
-    {
-      id: 8,
-      timestamp: "2024-01-15 14:12:55",
-      bet: "0.2 ETH",
-      side: "heads",
-      result: "heads",
-      outcome: "WIN",
-      payout: "0.39 ETH",
-      profit: "+0.19 ETH",
-    },
-  ]
+  const { address, chainId, isConnected } = useAccount()
+  const publicClient = usePublicClient()
+  const [activeTab, setActiveTab] = useState("global")
+  const [logs, setLogs] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
-  const totalProfit = gameHistory.reduce((sum, game) => {
-    const profit = Number.parseFloat(game.profit.replace(/[^\d.-]/g, ""))
-    return sum + (game.profit.includes("ETH") ? profit : profit * 0.0004) // Rough ETH conversion
-  }, 0)
+  const proxyAddress = useMemo(() => chainId ? FLIPEN_ADDRESSES[chainId] : undefined, [chainId])
+  const contractABI = useMemo(() => chainId === 42220 ? MAINNET_ABI : SEPOLIA_ABI, [chainId])
 
-  const winRate = ((gameHistory.filter((game) => game.outcome === "WIN").length / gameHistory.length) * 100).toFixed(1)
+  const fetchHistory = async () => {
+    if (!publicClient || !proxyAddress) return
+    setIsLoading(true)
+    try {
+      // Get the current block
+      const currentBlock = await publicClient.getBlockNumber()
+
+      // Fetch the last 10,000 blocks worth of events (lean chunk)
+      const eventLogs = await publicClient.getLogs({
+        address: proxyAddress,
+        event: {
+          "type": "event",
+          "name": "GameResult",
+          "inputs": [
+            { "type": "uint256", "name": "requestId", "indexed": true },
+            { "type": "address", "name": "player", "indexed": true },
+            { "type": "uint256", "name": "amount", "indexed": false },
+            { "type": "uint8", "name": "playerChoice", "indexed": false },
+            { "type": "uint8", "name": "result", "indexed": false },
+            { "type": "bool", "name": "won", "indexed": false },
+            { "type": "uint256", "name": "payout", "indexed": false },
+            { "type": "uint256", "name": "randomNumber", "indexed": false },
+            { "type": "uint256", "name": "timestamp", "indexed": false },
+            { "type": "address", "name": "token", "indexed": false }
+          ]
+        },
+        args: activeTab === "personal" ? { player: address } : {},
+        fromBlock: currentBlock - BigInt(10000), // Fetch from recent history only for speed
+        toBlock: 'latest'
+      })
+
+      const parsedLogs = eventLogs.map(log => {
+        const decoded = decodeEventLog({
+          abi: contractABI as any,
+          data: log.data,
+          topics: log.topics,
+        }) as any
+        return {
+          ...decoded.args,
+          txHash: log.transactionHash,
+          blockNumber: log.blockNumber
+        }
+      }).reverse() // Most recent first
+
+      setLogs(parsedLogs)
+    } catch (error) {
+      console.error("Failed to fetch history:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchHistory()
+  }, [activeTab, chainId, address, proxyAddress])
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Summary Stats */}
-      <div className="grid md:grid-cols-3 gap-6">
-        <Card className="bg-slate-800/50 backdrop-blur-sm border-cyan-500/20">
-          <CardContent className="p-6 text-center">
-            <div className="flex items-center justify-center mb-2">
-              {totalProfit >= 0 ? (
-                <TrendingUp className="w-8 h-8 text-green-400" />
-              ) : (
-                <TrendingDown className="w-8 h-8 text-red-400" />
-              )}
-            </div>
-            <h3 className="text-2xl font-bold text-white mb-1">
-              {totalProfit >= 0 ? "+" : ""}
-              {totalProfit.toFixed(3)} ETH
-            </h3>
-            <p className="text-gray-400">Total P&L</p>
-          </CardContent>
-        </Card>
+    <Card className="bg-card/80 backdrop-blur-sm border-gold/10 shadow-2xl">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-gold/5">
+        <div className="flex items-center gap-2">
+          <History className="w-5 h-5 text-gold" />
+          <CardTitle className="text-lg font-black tracking-tighter">GAME HISTORY</CardTitle>
+        </div>
+        <Button variant="ghost" size="icon" onClick={fetchHistory} disabled={isLoading} className={isLoading ? "animate-spin" : ""}>
+          <RefreshCcw className="w-4 h-4 text-gold" />
+        </Button>
+      </CardHeader>
 
-        <Card className="bg-slate-800/50 backdrop-blur-sm border-cyan-500/20">
-          <CardContent className="p-6 text-center">
-            <div className="text-3xl mb-2">🎯</div>
-            <h3 className="text-2xl font-bold text-cyan-400 mb-1">{winRate}%</h3>
-            <p className="text-gray-400">Win Rate</p>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="global" className="w-full" onValueChange={setActiveTab}>
+        <div className="px-6 pt-4">
+          <div className="flex bg-muted/20 p-1 rounded-xl border border-gold/10">
+            <button
+              onClick={() => setActiveTab("global")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === "global" ? 'bg-gold text-black shadow-lg' : 'text-muted-foreground hover:text-gold'}`}
+            >
+              <Globe className="w-3.5 h-3.5" /> GLOBAL
+            </button>
+            <button
+              onClick={() => setActiveTab("personal")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === "personal" ? 'bg-gold text-black shadow-lg' : 'text-muted-foreground hover:text-gold'}`}
+            >
+              <User className="w-3.5 h-3.5" /> MY BETS
+            </button>
+          </div>
+        </div>
 
-        <Card className="bg-slate-800/50 backdrop-blur-sm border-cyan-500/20">
-          <CardContent className="p-6 text-center">
-            <div className="text-3xl mb-2">🎮</div>
-            <h3 className="text-2xl font-bold text-white mb-1">{gameHistory.length}</h3>
-            <p className="text-gray-400">Games Played</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Game History Table */}
-      <Card className="bg-slate-800/50 backdrop-blur-sm border-cyan-500/20">
-        <CardHeader>
-          <CardTitle className="text-cyan-400 flex items-center space-x-2">
-            <Clock className="w-5 h-5" />
-            <span>Game History</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="text-left py-3 px-2 text-gray-400 font-medium">Time</th>
-                  <th className="text-left py-3 px-2 text-gray-400 font-medium">Bet</th>
-                  <th className="text-left py-3 px-2 text-gray-400 font-medium">Side</th>
-                  <th className="text-left py-3 px-2 text-gray-400 font-medium">Result</th>
-                  <th className="text-left py-3 px-2 text-gray-400 font-medium">Outcome</th>
-                  <th className="text-right py-3 px-2 text-gray-400 font-medium">Profit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {gameHistory.map((game) => (
-                  <tr key={game.id} className="border-b border-slate-700/50 hover:bg-slate-700/20">
-                    <td className="py-3 px-2 text-gray-300 text-sm font-mono">{game.timestamp.split(" ")[1]}</td>
-                    <td className="py-3 px-2 text-white font-medium">{game.bet}</td>
-                    <td className="py-3 px-2">
-                      <Badge variant="outline" className="border-cyan-500/30 text-cyan-400">
-                        {game.side.toUpperCase()}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-2">
-                      <Badge variant="outline" className="border-gray-500/30 text-gray-300">
-                        {game.result.toUpperCase()}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-2">
-                      <Badge
-                        variant="outline"
-                        className={
-                          game.outcome === "WIN"
-                            ? "border-green-500/30 text-green-400"
-                            : "border-red-500/30 text-red-400"
-                        }
-                      >
-                        {game.outcome}
-                      </Badge>
-                    </td>
-                    <td
-                      className={`py-3 px-2 text-right font-bold ${
-                        game.profit.startsWith("+") ? "text-green-400" : "text-red-400"
-                      }`}
-                    >
-                      {game.profit}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <CardContent className="p-0">
+          <div className="min-h-[400px] overflow-x-auto">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <Loader2 className="w-8 h-8 text-gold animate-spin" />
+                <p className="text-xs font-bold text-muted-foreground animate-pulse">SCANNING BLOCKCHAIN...</p>
+              </div>
+            ) : logs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center px-6">
+                <div className="w-16 h-16 rounded-full bg-gold/5 flex items-center justify-center mb-4">
+                  <History className="w-8 h-8 text-gold/20" />
+                </div>
+                <p className="text-sm font-bold text-muted-foreground">NO GAMES FOUND</p>
+                <p className="text-[10px] text-muted-foreground max-w-[200px] mt-1">Be the first to flip on this network!</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow className="border-gold/5 hover:bg-transparent">
+                    <TableHead className="text-[10px] uppercase font-black text-gold/50">Player</TableHead>
+                    <TableHead className="text-[10px] uppercase font-black text-gold/50">Bet</TableHead>
+                    <TableHead className="text-[10px] uppercase font-black text-gold/50">Side</TableHead>
+                    <TableHead className="text-[10px] uppercase font-black text-gold/50">Result</TableHead>
+                    <TableHead className="text-[10px] uppercase font-black text-gold/50 text-right">Payout</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((game, i) => (
+                    <TableRow key={i} className="border-gold/5 hover:bg-gold/5 transition-colors group">
+                      <TableCell className="py-4">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-mono font-bold tracking-tighter">
+                            {game.player.substring(0, 6)}...{game.player.substring(38)}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground flex items-center gap-1 group-hover:text-gold transition-colors">
+                            VIEW TX <ExternalLink className="w-2.5 h-2.5" />
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-black">{parseFloat(formatUnits(game.amount, 18)).toFixed(2)}</span>
+                          <span className="text-[9px] text-muted-foreground uppercase">{game.token === "0x0000000000000000000000000000000000000000" ? 'CELO' : 'cUSD'}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[9px] border-gold/20 bg-gold/5 font-bold">
+                          {game.playerChoice === 1 ? '👑 HEADS' : '💰 TAILS'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={`text-[9px] font-black ${game.won ? 'bg-green-500 text-black' : 'bg-red-500/20 text-red-400 border-red-500/20'}`}>
+                          {game.won ? 'WIN' : 'LOSS'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className={`text-xs font-black ${game.won ? 'text-green-400' : 'text-muted-foreground opacity-50'}`}>
+                          {game.won ? `+${parseFloat(formatUnits(game.payout, 18)).toFixed(2)}` : '0.00'}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </div>
         </CardContent>
-      </Card>
-    </div>
+      </Tabs>
+    </Card>
   )
 }

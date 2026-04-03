@@ -1,213 +1,182 @@
 "use client"
 
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Trophy, Medal, Award, TrendingUp } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Trophy, Medal, User, Loader2, RefreshCcw, TrendingUp } from "lucide-react"
+import { useAccount, usePublicClient } from "wagmi"
+import { formatUnits, decodeEventLog } from "viem"
+import { FLIPEN_ADDRESSES } from "@/contracts/addresses"
+import SEPOLIA_ABI from "@/contracts/sepolia-abi.json"
+import MAINNET_ABI from "@/contracts/celo-abi.json"
 
 export function Leaderboard() {
-  const topWinners = [
-    {
-      rank: 1,
-      address: "0x1234...5678",
-      totalWon: "45.67 ETH",
-      gamesWon: 234,
-      winRate: "67.8%",
-      biggestWin: "12.5 ETH",
-    },
-    {
-      rank: 2,
-      address: "0x8765...4321",
-      totalWon: "38.92 ETH",
-      gamesWon: 189,
-      winRate: "62.1%",
-      biggestWin: "8.9 ETH",
-    },
-    {
-      rank: 3,
-      address: "0x9876...1234",
-      totalWon: "31.45 ETH",
-      gamesWon: 156,
-      winRate: "58.9%",
-      biggestWin: "7.2 ETH",
-    },
-    {
-      rank: 4,
-      address: "0x4567...8901",
-      totalWon: "28.73 ETH",
-      gamesWon: 143,
-      winRate: "55.4%",
-      biggestWin: "6.8 ETH",
-    },
-    {
-      rank: 5,
-      address: "0x2345...6789",
-      totalWon: "25.18 ETH",
-      gamesWon: 128,
-      winRate: "53.2%",
-      biggestWin: "5.9 ETH",
-    },
-    {
-      rank: 6,
-      address: "0x6789...0123",
-      totalWon: "22.94 ETH",
-      gamesWon: 117,
-      winRate: "51.8%",
-      biggestWin: "5.4 ETH",
-    },
-    {
-      rank: 7,
-      address: "0x3456...7890",
-      totalWon: "20.67 ETH",
-      gamesWon: 105,
-      winRate: "49.7%",
-      biggestWin: "4.8 ETH",
-    },
-    { rank: 8, address: "0x7890...2345", totalWon: "18.42 ETH", gamesWon: 94, winRate: "47.9%", biggestWin: "4.2 ETH" },
-  ]
+  const { chainId } = useAccount()
+  const publicClient = usePublicClient()
+  const [leaders, setLeaders] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
-  const biggestWins = [
-    { address: "0x1234...5678", amount: "12.5 ETH", timestamp: "2024-01-15 14:30:25" },
-    { address: "0x8765...4321", amount: "8.9 ETH", timestamp: "2024-01-15 13:45:12" },
-    { address: "0x9876...1234", amount: "7.2 ETH", timestamp: "2024-01-15 12:20:33" },
-    { address: "0x4567...8901", amount: "6.8 ETH", timestamp: "2024-01-15 11:15:47" },
-    { address: "0x2345...6789", amount: "5.9 ETH", timestamp: "2024-01-15 10:30:18" },
-  ]
+  const proxyAddress = useMemo(() => chainId ? FLIPEN_ADDRESSES[chainId] : undefined, [chainId])
+  const contractABI = useMemo(() => chainId === 42220 ? MAINNET_ABI : SEPOLIA_ABI, [chainId])
 
-  const getRankIcon = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return <Trophy className="w-5 h-5 text-yellow-400" />
-      case 2:
-        return <Medal className="w-5 h-5 text-gray-400" />
-      case 3:
-        return <Award className="w-5 h-5 text-amber-600" />
-      default:
-        return <span className="w-5 h-5 flex items-center justify-center text-gray-400 font-bold">{rank}</span>
+  const buildLeaderboard = async () => {
+    if (!publicClient || !proxyAddress) return
+    setIsLoading(true)
+    try {
+      const currentBlock = await publicClient.getBlockNumber()
+      
+      // Fetch a larger range for the leaderboard (last 50,000 blocks)
+      const eventLogs = await publicClient.getLogs({
+        address: proxyAddress,
+        event: {
+          "type": "event",
+          "name": "GameResult",
+          "inputs": [
+            { "type": "uint256", "name": "requestId", "indexed": true },
+            { "type": "address", "name": "player", "indexed": true },
+            { "type": "uint256", "name": "amount", "indexed": false },
+            { "type": "uint8", "name": "playerChoice", "indexed": false },
+            { "type": "uint8", "name": "result", "indexed": false },
+            { "type": "bool", "name": "won", "indexed": false },
+            { "type": "uint256", "name": "payout", "indexed": false },
+            { "type": "uint256", "name": "randomNumber", "indexed": false },
+            { "type": "uint256", "name": "timestamp", "indexed": false },
+            { "type": "address", "name": "token", "indexed": false }
+          ]
+        },
+        fromBlock: currentBlock - BigInt(50000), 
+        toBlock: 'latest'
+      })
+
+      // Aggregate stats by player
+      const playerMap = new Map<string, { address: string, volume: bigint, wins: number, games: number }>()
+
+      eventLogs.forEach(log => {
+        const decoded = decodeEventLog({
+          abi: contractABI as any,
+          data: log.data,
+          topics: log.topics,
+        }) as any
+        const args = decoded.args
+        const player = args.player
+        
+        const current = playerMap.get(player) || { address: player, volume: BigInt(0), wins: 0, games: 0 }
+        
+        playerMap.set(player, {
+          address: player,
+          volume: current.volume + BigInt(args.amount),
+          wins: current.wins + (args.won ? 1 : 0),
+          games: current.games + 1
+        })
+      })
+
+      // Sort by volume and convert to array
+      const sortedLeaders = Array.from(playerMap.values())
+        .sort((a, b) => Number(b.volume - a.volume))
+        .slice(0, 10) // Top 10 only
+
+      setLeaders(sortedLeaders)
+    } catch (error) {
+      console.error("Failed to build leaderboard:", error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
+  useEffect(() => {
+    buildLeaderboard()
+  }, [chainId, proxyAddress])
+
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Top Winners */}
-      <Card className="bg-slate-800/50 backdrop-blur-sm border-cyan-500/20">
-        <CardHeader>
-          <CardTitle className="text-cyan-400 flex items-center space-x-2">
-            <Trophy className="w-5 h-5" />
-            <span>Top Winners - All Time</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+    <Card className="bg-card/80 backdrop-blur-sm border-gold/10 shadow-2xl overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-gold/5 bg-gold/5 pb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gold/20 flex items-center justify-center border border-gold/20 shadow-lg shadow-gold/10">
+            <Trophy className="w-6 h-6 text-gold" />
+          </div>
+          <div>
+            <CardTitle className="text-xl font-black tracking-tight">TOP FLIPPERS</CardTitle>
+            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Protocol Legends</p>
+          </div>
+        </div>
+        <button 
+          onClick={buildLeaderboard} 
+          disabled={isLoading}
+          className={`p-2 rounded-lg hover:bg-gold/10 transition-colors ${isLoading ? 'animate-spin' : ''}`}
+        >
+          <RefreshCcw className="w-4 h-4 text-gold" />
+        </button>
+      </CardHeader>
+
+      <CardContent className="p-0">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-4">
+            <Loader2 className="w-10 h-10 text-gold animate-spin" />
+            <p className="text-xs font-black text-gold/50 tracking-widest uppercase">Analyzing Rankings...</p>
+          </div>
+        ) : leaders.length === 0 ? (
+          <div className="py-20 text-center">
+            <TrendingUp className="w-12 h-12 text-gold/10 mx-auto mb-4" />
+            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">No Legends Yet</p>
+          </div>
+        ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="text-left py-3 px-2 text-gray-400 font-medium">Rank</th>
-                  <th className="text-left py-3 px-2 text-gray-400 font-medium">Player</th>
-                  <th className="text-right py-3 px-2 text-gray-400 font-medium">Total Won</th>
-                  <th className="text-right py-3 px-2 text-gray-400 font-medium">Games Won</th>
-                  <th className="text-right py-3 px-2 text-gray-400 font-medium">Win Rate</th>
-                  <th className="text-right py-3 px-2 text-gray-400 font-medium">Biggest Win</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topWinners.map((player) => (
-                  <tr key={player.rank} className="border-b border-slate-700/50 hover:bg-slate-700/20">
-                    <td className="py-3 px-2">
-                      <div className="flex items-center space-x-2">{getRankIcon(player.rank)}</div>
-                    </td>
-                    <td className="py-3 px-2">
-                      <span className="font-mono text-white">{player.address}</span>
-                    </td>
-                    <td className="py-3 px-2 text-right font-bold text-green-400">{player.totalWon}</td>
-                    <td className="py-3 px-2 text-right text-white">{player.gamesWon}</td>
-                    <td className="py-3 px-2 text-right">
-                      <Badge
-                        variant="outline"
-                        className={`${
-                          Number.parseFloat(player.winRate) > 60
-                            ? "border-green-500/30 text-green-400"
-                            : Number.parseFloat(player.winRate) > 50
-                              ? "border-yellow-500/30 text-yellow-400"
-                              : "border-red-500/30 text-red-400"
-                        }`}
-                      >
-                        {player.winRate}
+            <Table>
+              <TableHeader className="bg-muted/30 border-b border-gold/5">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-[60px] text-[10px] font-black uppercase text-gold/50 text-center italic">Rank</TableHead>
+                  <TableHead className="text-[10px] font-black uppercase text-gold/50">Player</TableHead>
+                  <TableHead className="text-[10px] font-black uppercase text-gold/50 text-center">Games</TableHead>
+                  <TableHead className="text-[10px] font-black uppercase text-gold/50 text-right pr-6">Volume</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leaders.map((leader, i) => (
+                  <TableRow key={leader.address} className="border-gold/5 hover:bg-gold/5 transition-all group">
+                    <TableCell className="text-center">
+                      <div className="flex justify-center">
+                        {i === 0 ? (
+                          <div className="w-7 h-7 rounded-full bg-gold text-black flex items-center justify-center text-xs font-black shadow-lg shadow-gold/20">1</div>
+                        ) : i === 1 ? (
+                          <div className="w-7 h-7 rounded-full bg-slate-300 text-black flex items-center justify-center text-xs font-black shadow-lg shadow-slate-300/20">2</div>
+                        ) : i === 2 ? (
+                          <div className="w-7 h-7 rounded-full bg-amber-700 text-white flex items-center justify-center text-xs font-black shadow-lg shadow-amber-700/20">3</div>
+                        ) : (
+                          <span className="text-xs font-mono font-bold text-muted-foreground">#{i + 1}</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center border border-gold/10">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                        <span className="text-xs font-mono font-black tracking-tighter">
+                          {leader.address.substring(0, 6)}...{leader.address.substring(38)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline" className="bg-gold/5 border-gold/20 text-[10px] font-black">
+                        {leader.games}
                       </Badge>
-                    </td>
-                    <td className="py-3 px-2 text-right font-semibold text-cyan-400">{player.biggestWin}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="text-right pr-6">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-black text-gold">
+                          {parseFloat(formatUnits(leader.volume, 18)).toFixed(2)}
+                        </span>
+                        <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-tighter">CELO/cUSD</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Hall of Fame - Biggest Wins */}
-      <Card className="bg-slate-800/50 backdrop-blur-sm border-cyan-500/20">
-        <CardHeader>
-          <CardTitle className="text-cyan-400 flex items-center space-x-2">
-            <TrendingUp className="w-5 h-5" />
-            <span>Hall of Fame - Biggest Single Wins</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {biggestWins.map((win, index) => (
-              <div key={index} className="bg-slate-700/30 rounded-lg p-4 flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full text-slate-900 font-bold">
-                    {index + 1}
-                  </div>
-                  <div>
-                    <div className="font-mono text-white">{win.address}</div>
-                    <div className="text-sm text-gray-400">{win.timestamp}</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-green-400">{win.amount}</div>
-                  <div className="text-sm text-gray-400">Single Win</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Platform Stats */}
-      <div className="grid md:grid-cols-4 gap-6">
-        <Card className="bg-slate-800/50 backdrop-blur-sm border-cyan-500/20">
-          <CardContent className="p-6 text-center">
-            <div className="text-3xl mb-2">🎮</div>
-            <h3 className="text-2xl font-bold text-white mb-1">45,123</h3>
-            <p className="text-gray-400">Total Games</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800/50 backdrop-blur-sm border-cyan-500/20">
-          <CardContent className="p-6 text-center">
-            <div className="text-3xl mb-2">💰</div>
-            <h3 className="text-2xl font-bold text-cyan-400 mb-1">1,234.5 ETH</h3>
-            <p className="text-gray-400">Total Volume</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800/50 backdrop-blur-sm border-cyan-500/20">
-          <CardContent className="p-6 text-center">
-            <div className="text-3xl mb-2">👥</div>
-            <h3 className="text-2xl font-bold text-green-400 mb-1">2,847</h3>
-            <p className="text-gray-400">Active Players</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800/50 backdrop-blur-sm border-cyan-500/20">
-          <CardContent className="p-6 text-center">
-            <div className="text-3xl mb-2">🏆</div>
-            <h3 className="text-2xl font-bold text-yellow-400 mb-1">567.8 ETH</h3>
-            <p className="text-gray-400">Total Payouts</p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
