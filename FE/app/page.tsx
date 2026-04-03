@@ -53,8 +53,8 @@ export default function GamePage() {
   const balance = useMemo(() => {
     try {
       if (selectedAsset === "CELO") {
-        if (!celoBalance || !celoBalance.formatted) return "0.0000"
-        const num = parseFloat(celoBalance.formatted)
+        if (!celoBalance) return "0.0000"
+        const num = parseFloat(formatUnits(celoBalance.value, celoBalance.decimals))
         return isNaN(num) ? "0.0000" : num.toFixed(4)
       } else {
         if (cusdBalanceRaw === undefined || cusdBalanceRaw === null) return "0.0000"

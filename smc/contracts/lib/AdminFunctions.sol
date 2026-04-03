@@ -77,6 +77,13 @@ abstract contract AdminFunctions is
     }
 
     /**
+     * @dev Get current bet limits
+     */
+    function getBetLimits() external view returns (uint256 min, uint256 max) {
+        return (minBetAmount, maxBetAmount);
+    }
+
+    /**
      * @dev Emergency function to fund contract for game payouts
      */
     function fundContract() external payable onlyOwner {

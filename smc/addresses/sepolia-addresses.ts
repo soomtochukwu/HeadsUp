@@ -1,6 +1,7 @@
 // Auto-generated file - Do not edit manually
-// Generated on: 2026-04-03T02:45:03.324Z
+// Generated on: 2026-04-03T05:22:59.659Z
 // Network: sepolia
+// Upgraded from: 0x9D9c9be74550067E8788C6BB9d0F887bB52813c2
 
 export interface ContractAddresses {
   proxyAddress: string;
@@ -8,6 +9,8 @@ export interface ContractAddresses {
   network: string;
   deployedAt: string;
   deployer: string;
+  previousImplementation?: string;
+  upgradedAt?: string;
 }
 
 export const contractAddresses: ContractAddresses = {
@@ -15,7 +18,9 @@ export const contractAddresses: ContractAddresses = {
   implementationAddress: "0x9D9c9be74550067E8788C6BB9d0F887bB52813c2",
   network: "sepolia",
   deployedAt: "2026-04-03T02:45:03.324Z",
-  deployer: "0x8a371e00cd51E2BE005B86EF73C5Ee9Ef6d23FeB"
+  deployer: "0x8a371e00cd51E2BE005B86EF73C5Ee9Ef6d23FeB",
+  previousImplementation: "0x9D9c9be74550067E8788C6BB9d0F887bB52813c2",
+  upgradedAt: "2026-04-03T05:22:59.659Z"
 };
 
 // Export individual addresses for convenience
