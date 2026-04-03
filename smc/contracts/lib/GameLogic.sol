@@ -4,8 +4,6 @@ pragma solidity ^0.8.28;
 import "./FlipenStorage.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
-import "@chainlink/contracts/src/v0.8/vrf/dev/IVRFCoordinatorV2Plus.sol";
 
 abstract contract GameLogic is
     FlipenStorage,
@@ -16,14 +14,14 @@ abstract contract GameLogic is
     }
 
     /**
-     * @dev Main function for players to flip coin with native CELO
+     * @dev Step 1: Commitment - Place a bet with native CELO
      */
     function flipCoin(uint8 choice) external payable nonReentrant {
         _playGame(choice, msg.value, address(0));
     }
 
     /**
-     * @dev Main function for players to flip coin with cUSD or other ERC20
+     * @dev Step 1: Commitment - Place a bet with cUSD or other ERC20
      */
     function flipCoinERC20(uint8 choice, uint256 amount, address token) external nonReentrant {
         require(token == cUSD, "Only cUSD supported for now");
@@ -35,7 +33,7 @@ abstract contract GameLogic is
     }
 
     /**
-     * @dev Internal game logic to request VRF
+     * @dev Internal game logic to store commitment
      */
     function _playGame(uint8 choice, uint256 amount, address token) internal {
         require(
@@ -44,7 +42,6 @@ abstract contract GameLogic is
         );
         require(amount >= minBetAmount, "Bet amount too low");
         require(amount <= maxBetAmount, "Bet amount too high");
-        require(vrfConfig.subscriptionId != 0, "VRF Subscription not set");
         
         uint256 potentialPayout = (amount * PAYOUT_PERCENTAGE) / BASIS_POINTS;
         
@@ -64,24 +61,7 @@ abstract contract GameLogic is
         uint256 gameId = gameCounter;
         gameCounter++;
 
-        // Request VRF
-        uint256 vrfRequestId = IVRFCoordinatorV2Plus(address(s_vrfCoordinator)).requestRandomWords(
-            VRFV2PlusClient.RandomWordsRequest({
-                keyHash: vrfConfig.keyHash,
-                subId: vrfConfig.subscriptionId,
-                requestConfirmations: vrfConfig.requestConfirmations,
-                callbackGasLimit: vrfConfig.callbackGasLimit,
-                numWords: 1,
-                extraArgs: VRFV2PlusClient._argsToBytes(
-                    VRFV2PlusClient.ExtraArgsV1({nativePayment: true}) // Pay VRF in CELO
-                )
-            })
-        );
-
-        // Map VRF request to Game ID
-        vrfToGameRequestId[vrfRequestId] = gameId;
-
-        // Store game request as PENDING
+        // Store game request as PENDING with commitBlock
         gameRequests[gameId] = GameRequest({
             player: msg.sender,
             amount: amount,
@@ -89,6 +69,7 @@ abstract contract GameLogic is
             status: GameStatus.PENDING,
             won: false,
             timestamp: block.timestamp,
+            commitBlock: block.number, // The block this transaction is mined in
             randomNumber: 0,
             coinResult: 0,
             token: token
@@ -98,18 +79,36 @@ abstract contract GameLogic is
         totalGamesPlayed++;
         totalVolume += amount;
 
-        emit GameRequested(gameId, vrfRequestId, msg.sender, amount, choice, block.timestamp, token);
+        emit GameRequested(gameId, msg.sender, amount, choice, block.number, token);
     }
 
     /**
-     * @dev Callback handler for VRF fulfillment
+     * @dev Step 2: Resolution - Resolve game using future block entropy
      */
-    function _fulfillGame(uint256 vrfRequestId, uint256 randomNumber) internal {
-        uint256 gameId = vrfToGameRequestId[vrfRequestId];
+    function resolveGame(uint256 gameId) external nonReentrant {
         GameRequest storage game = gameRequests[gameId];
         
         require(game.player != address(0), "Game not found");
-        require(game.status == GameStatus.PENDING, "Game already fulfilled");
+        require(game.status == GameStatus.PENDING, "Game already resolved");
+        require(block.number > game.commitBlock, "Cannot resolve in the same block");
+        
+        // Anti-manipulation: Must resolve within 250 blocks
+        if (block.number > game.commitBlock + BLOCK_EXPIRATION) {
+            game.status = GameStatus.EXPIRED;
+            emit GameCompleted(gameId, game.player, false, 0, game.token);
+            return;
+        }
+
+        // Sophisticated Native Entropy Mix
+        // Uses blockhash of the commit block (which was unknown when bet was placed)
+        // plus other unpredictable environmental variables
+        uint256 randomNumber = uint256(keccak256(abi.encodePacked(
+            blockhash(game.commitBlock),
+            block.prevrandao,
+            block.timestamp,
+            game.player,
+            gameId
+        )));
 
         uint8 coinResult = uint8(randomNumber % 2);
         bool won = (coinResult == game.playerChoice);
@@ -125,7 +124,6 @@ abstract contract GameLogic is
             
             if (game.token == address(0)) {
                 (bool success, ) = payable(game.player).call{value: payout}("");
-                // If transfer fails, we don't revert (to avoid blocking VRF), but we log it
                 if (!success) game.status = GameStatus.CANCELLED;
             } else {
                 bool success = IERC20(game.token).transfer(game.player, payout);
@@ -159,7 +157,7 @@ abstract contract GameLogic is
     }
 
     /**
-     * @dev Get game details by request ID
+     * @dev Get game details
      */
     function getGameDetails(
         uint256 requestId

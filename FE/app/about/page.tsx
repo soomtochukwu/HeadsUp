@@ -63,7 +63,7 @@ export default function AboutPage() {
                   <ul className="list-disc list-inside space-y-2 ml-4">
                     <li>Provably fair gaming with blockchain transparency</li>
                     <li>Support for CELO, cUSD and other Celo ecosystem tokens</li>
-                    <li>Multi-chain support: Celo Mainnet and Alfajores Testnet</li>
+                    <li>Multi-chain support: Celo Mainnet and Sepolia Testnet</li>
                     <li>Instant payouts with 1.95x multiplier</li>
                     <li>Professional security and anti-bot protection</li>
                     <li>Community-driven with integrated chat system</li>

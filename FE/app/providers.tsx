@@ -4,28 +4,47 @@ import "@rainbow-me/rainbowkit/styles.css";
 import * as React from "react";
 import {
   RainbowKitProvider,
-  getDefaultWallets,
   getDefaultConfig,
   darkTheme,
 } from "@rainbow-me/rainbowkit";
-import {
-  metaMaskWallet,
-  okxWallet,
-  trustWallet,
-} from "@rainbow-me/rainbowkit/wallets";
-import { celo, celoAlfajores } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { WagmiProvider } from "wagmi";
+import { WagmiProvider, http } from "wagmi";
+import { type Chain } from "viem";
 
-const { wallets } = getDefaultWallets();
+// Force specific chain definitions to match Wallet expectations (Prevents S-CELO errors)
+const celoMainnet = {
+  id: 42220,
+  name: 'Celo',
+  nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://forno.celo.org'] },
+  },
+  blockExplorers: {
+    default: { name: 'CeloScan', url: 'https://celoscan.io' },
+  },
+} as const satisfies Chain;
+
+const celoSepolia = {
+  id: 11142220,
+  name: 'Celo Sepolia',
+  nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://forno.celo-sepolia.celo-testnet.org'] },
+  },
+  blockExplorers: {
+    default: { name: 'CeloScan', url: 'https://sepolia.celoscan.io' },
+  },
+  testnet: true,
+} as const satisfies Chain;
 
 const config = getDefaultConfig({
   appName: "Flipen",
   projectId: "7b4405ad426eb6d4e981a8570a10337c",
-  chains: [
-    celo,
-    celoAlfajores,
-  ],
+  chains: [celoMainnet, celoSepolia],
+  transports: {
+    [celoMainnet.id]: http(),
+    [celoSepolia.id]: http(),
+  },
   ssr: true,
 });
 
@@ -39,12 +58,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
           theme={darkTheme({
             accentColor: "#DAA520",
             accentColorForeground: "white",
-            fontStack: "system",
-            overlayBlur: "small",
-            borderRadius: "large",
           })}
           modalSize="compact"
-          initialChain={celo}
         >
           {children}
         </RainbowKitProvider>

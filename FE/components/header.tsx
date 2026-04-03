@@ -4,53 +4,27 @@ import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Wallet, Coins, TrendingUp, Trophy, Info, MessageCircle, Sun, Moon, Menu, X } from "lucide-react"
+import { Coins, TrendingUp, Trophy, Info, MessageCircle, Sun, Moon, Menu, X } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
-import { setBalance } from "@/utils/setBalance"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
-import { useChainId } from 'wagmi'
-import { Chain, celo, celoAlfajores } from 'wagmi/chains'
-
-const chainMap: Record<number, Chain> = {
-  [celo.id]: celo,
-  [celoAlfajores.id]: celoAlfajores,
-}
+import { useAccount } from 'wagmi'
 
 interface HeaderProps {
-  isWalletConnected: boolean
-  setIsWalletConnected: (connected: boolean) => void
-  selectedNetwork: string
-  setSelectedNetwork: (network: string) => void
-  setChainID: (chainID: number) => void
   balance: string
-  walletAddress: string
-  setWalletAddress: (address: string) => void
   setIsCommentsSidebarOpen: (open: boolean) => void
   selectedAsset: string
 }
 
-const networks = [
-  { id: "celo", name: "CELO", color: "text-yellow-600", symbol: "CELO", chainId: 42220 },
-  { id: "alfajores", name: "ALFAJORES", color: "text-green-500", symbol: "CELO", chainId: 44787 },
-]
-
 export function Header({
-  isWalletConnected,
-  setIsWalletConnected,
-  selectedNetwork,
-  setSelectedNetwork,
-  setChainID,
   balance,
-  walletAddress,
-  setWalletAddress,
   setIsCommentsSidebarOpen,
   selectedAsset,
 }: HeaderProps) {
-  const [showWalletOptions, setShowWalletOptions] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const { theme, setTheme } = useTheme()
   const router = useRouter()
   const pathname = usePathname()
+  const { isConnected } = useAccount()
   
   const tabs = [
     { id: "game", label: "Game", icon: Coins, href: "/" },
@@ -58,10 +32,6 @@ export function Header({
     { id: "leaderboard", label: "Leaderboard", icon: Trophy, href: "/leaderboard" },
     { id: "about", label: "About", icon: Info, href: "/about" },
   ]
-  
-  const selectedNetworkData = networks.find((n) => n.id === selectedNetwork)
-  const chainId = useChainId()
-  const chain = chainMap[chainId]
   
   const getCurrentTab = () => {
     const currentTab = tabs.find(tab => tab.href === pathname)
@@ -78,11 +48,6 @@ export function Header({
     setIsMobileSidebarOpen(false)
   }
 
-  useEffect(() => {
-    setChainID(chainId)
-    setSelectedNetwork(chain?.name)
-  }, [chainId])
-  
   // Close sidebar when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -152,6 +117,16 @@ export function Header({
 
             {/* Desktop Right Side */}
             <div className="hidden lg:flex items-center space-x-3">
+              {/* Custom Balance Display (Only when connected) */}
+              {isConnected && (
+                <div className="hidden xl:flex items-center space-x-2 bg-gold/10 border border-gold/30 rounded-full px-3 py-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-gold font-bold text-xs">
+                    {balance} {selectedAsset}
+                  </span>
+                </div>
+              )}
+
               {/* Theme Toggle */}
               <Button
                 variant="outline"
@@ -162,34 +137,20 @@ export function Header({
                 {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
               </Button>
 
-              {/* Wallet Connection */}
-              {isWalletConnected ? (
-                <div className="flex items-center space-x-3 bg-card/50 border border-gold rounded-lg px-4 py-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-gold font-semibold text-sm">
-                    {balance} {selectedAsset}
-                  </span>
-                  <span className="text-xs text-muted-foreground font-mono">{walletAddress}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setIsWalletConnected(false)
-                      setWalletAddress("")
-                    }}
-                    className="text-muted-foreground hover:text-foreground text-xs"
-                  >
-                    Disconnect
-                  </Button>
-                </div>
-              ) : (
-                <div className="bg-gold-gradient text-white font-semibold rounded-lg p-2 flex items-center min-h-[40px]">
-                  <Wallet className="w-4 h-4 mr-2" />
-                  <div className="[&>button]:!text-white [&>button]:!font-semibold [&>button]:!text-sm">
-                    <ConnectButton />
-                  </div>
-                </div>
-              )}
+              {/* RainbowKit Connect Button - THE SOURCE OF TRUTH */}
+              <div className="flex items-center">
+                <ConnectButton 
+                  showBalance={false}
+                  accountStatus={{
+                    smallScreen: 'avatar',
+                    largeScreen: 'full',
+                  }}
+                  chainStatus={{
+                    smallScreen: 'icon',
+                    largeScreen: 'name',
+                  }}
+                />
+              </div>
             </div>
             
             {/* Mobile Hamburger Menu */}
@@ -239,6 +200,21 @@ export function Header({
           
           {/* Navigation Items */}
           <div className="flex-1 p-4 space-y-2">
+            {/* Balance Card Mobile */}
+            {isConnected && (
+              <div className="bg-gold/10 border border-gold/30 rounded-xl p-4 mb-4 text-center">
+                <div className="text-xs text-muted-foreground uppercase font-bold mb-1 tracking-wider">Available Balance</div>
+                <div className="text-2xl font-black text-gold">
+                  {balance} <span className="text-sm">{selectedAsset}</span>
+                </div>
+              </div>
+            )}
+
+            {/* RainbowKit Mobile */}
+            <div className="mb-6 flex justify-center">
+              <ConnectButton />
+            </div>
+
             {/* Community Button */}
             <Button
               onClick={handleCommunityClick}
@@ -284,43 +260,6 @@ export function Header({
                 <span className="text-base">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
               </Button>
             </div>
-          </div>
-          
-          {/* Wallet Section at Bottom */}
-          <div className="p-4 border-t border-gold/20 mt-auto">
-            {isWalletConnected ? (
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3 bg-card/50 border border-gold rounded-lg p-3">
-                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-gold font-semibold text-sm">
-                      {balance} {selectedAsset}
-                    </div>
-                    <div className="text-xs text-muted-foreground font-mono truncate">
-                      {walletAddress}
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsWalletConnected(false)
-                    setWalletAddress("")
-                    setIsMobileSidebarOpen(false)
-                  }}
-                  className="w-full border-red-500 text-red-500 hover:bg-red-500/10 h-12"
-                >
-                  Disconnect Wallet
-                </Button>
-              </div>
-            ) : (
-              <div className="bg-gold-gradient text-white font-semibold rounded-lg p-3 flex items-center justify-center min-h-[48px]">
-                <Wallet className="w-5 h-5 mr-2" />
-                <div className="[&>button]:!text-white [&>button]:!font-semibold [&>button]:!text-base">
-                  <ConnectButton />
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
