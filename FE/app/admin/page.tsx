@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { useAccount, useReadContract, useWriteContract, usePublicClient, useBalance, useSwitchChain } from "wagmi"
 import { parseEther, formatUnits, parseUnits } from "viem"
-import { FLIPEN_PROXY_ADDRESS } from "@/contracts/addresses"
+import { FLIPEN_ADDRESSES } from "@/contracts/addresses"
 import { toast } from "sonner"
 import { ShieldAlert, ShieldCheck, Wallet, ArrowDownCircle, Settings, Play, Pause, AlertTriangle, RefreshCw, ArrowUpCircle } from "lucide-react"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
@@ -46,21 +46,22 @@ export default function AdminPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const isCorrectChain = useMemo(() => chainId && SUPPORTED_CHAINS.includes(chainId), [chainId])
+  const proxyAddress = useMemo(() => chainId ? FLIPEN_ADDRESSES[chainId] : undefined, [chainId])
 
   // Contract Reads
-  const { data: contractOwner, refetch: refetchOwner } = useReadContract({ address: FLIPEN_PROXY_ADDRESS as `0x${string}`, abi: ADMIN_ABI, functionName: 'owner', query: { enabled: !!isCorrectChain } })
-  const { data: isPaused, refetch: refetchPaused } = useReadContract({ address: FLIPEN_PROXY_ADDRESS as `0x${string}`, abi: ADMIN_ABI, functionName: 'paused', query: { enabled: !!isCorrectChain } })
-  const { data: betLimits, refetch: refetchLimits } = useReadContract({ address: FLIPEN_PROXY_ADDRESS as `0x${string}`, abi: ADMIN_ABI, functionName: 'getBetLimits', query: { enabled: !!isCorrectChain } })
-  const { data: currentCUSD, refetch: refetchCusdAddr } = useReadContract({ address: FLIPEN_PROXY_ADDRESS as `0x${string}`, abi: ADMIN_ABI, functionName: 'cUSD', query: { enabled: !!isCorrectChain } })
+  const { data: contractOwner, refetch: refetchOwner } = useReadContract({ address: proxyAddress, abi: ADMIN_ABI, functionName: 'owner', query: { enabled: !!isCorrectChain && !!proxyAddress } })
+  const { data: isPaused, refetch: refetchPaused } = useReadContract({ address: proxyAddress, abi: ADMIN_ABI, functionName: 'paused', query: { enabled: !!isCorrectChain && !!proxyAddress } })
+  const { data: betLimits, refetch: refetchLimits } = useReadContract({ address: proxyAddress, abi: ADMIN_ABI, functionName: 'getBetLimits', query: { enabled: !!isCorrectChain && !!proxyAddress } })
+  const { data: currentCUSD, refetch: refetchCusdAddr } = useReadContract({ address: proxyAddress, abi: ADMIN_ABI, functionName: 'cUSD', query: { enabled: !!isCorrectChain && !!proxyAddress } })
 
   // Balances
-  const { data: celoBankroll, refetch: refetchCelo } = useBalance({ address: FLIPEN_PROXY_ADDRESS as `0x${string}`, chainId: chainId, query: { enabled: !!isCorrectChain, refetchInterval: 5000 } })
+  const { data: celoBankroll, refetch: refetchCelo } = useBalance({ address: proxyAddress, chainId: chainId, query: { enabled: !!isCorrectChain && !!proxyAddress, refetchInterval: 5000 } })
   const { data: cusdBalanceRaw, refetch: refetchCusdBalance } = useReadContract({
     address: currentCUSD,
     abi: [ { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] } ],
     functionName: 'balanceOf',
-    args: [FLIPEN_PROXY_ADDRESS as `0x${string}`],
-    query: { enabled: !!isCorrectChain && !!currentCUSD, refetchInterval: 5000 }
+    args: proxyAddress ? [proxyAddress] : undefined,
+    query: { enabled: !!isCorrectChain && !!currentCUSD && !!proxyAddress, refetchInterval: 5000 }
   })
 
   const refreshAllData = useCallback(async () => {
@@ -77,9 +78,10 @@ export default function AdminPage() {
   }, [refetchOwner, refetchPaused, refetchLimits, refetchCusdAddr, refetchCelo, refetchCusdBalance])
 
   const handleAction = async (fn: string, args: any[], successMsg: string, value?: bigint, abiOverride?: any) => {
+    if (!proxyAddress) return
     try {
       const hash = await writeContractAsync({
-        address: (fn === "transfer" ? currentCUSD : FLIPEN_PROXY_ADDRESS) as `0x${string}`,
+        address: (fn === "transfer" ? currentCUSD : proxyAddress) as `0x${string}`,
         abi: abiOverride || ADMIN_ABI,
         functionName: fn as any,
         args,
@@ -98,7 +100,7 @@ export default function AdminPage() {
     }
   }
 
-  const isOwner = useMemo(() => address && contractOwner && address.toLowerCase() === contractOwner.toLowerCase(), [address, contractOwner])
+  const isOwner = useMemo(() => address && contractOwner && address.toLowerCase() === (contractOwner as string).toLowerCase(), [address, contractOwner])
 
   const formatLimit = (val: any) => {
     if (val === undefined || val === null) return "0.00"
@@ -168,8 +170,6 @@ export default function AdminPage() {
 
           <main className="flex-1 overflow-y-auto p-4 md:p-8">
             <div className="container mx-auto grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              
-              {/* HOUSE BANKROLL */}
               <Card className="bg-card/80 border-gold/20 shadow-xl">
                 <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><Wallet className="w-3.5 h-3.5 text-gold" /> House Bankroll</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -178,28 +178,19 @@ export default function AdminPage() {
                 </CardContent>
               </Card>
 
-              {/* BET LIMITS */}
               <Card className="bg-card/80 border-gold/20 shadow-xl">
                 <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><Settings className="w-3.5 h-3.5 text-gold" /> Bet Limits</CardTitle></CardHeader>
                 <CardContent className="space-y-4 pt-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Minimum:</span>
-                    <span className="font-bold text-gold">{betLimits && Array.isArray(betLimits) ? formatLimit(betLimits[0]) : "0.00"} CELO</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Maximum:</span>
-                    <span className="font-bold text-gold">{betLimits && Array.isArray(betLimits) ? formatLimit(betLimits[1]) : "0.00"} CELO</span>
-                  </div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Minimum:</span><span className="font-bold text-gold">{betLimits && Array.isArray(betLimits) ? formatLimit(betLimits[0]) : "0.00"} CELO</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Maximum:</span><span className="font-bold text-gold">{betLimits && Array.isArray(betLimits) ? formatLimit(betLimits[1]) : "0.00"} CELO</span></div>
                 </CardContent>
               </Card>
 
-              {/* SYSTEM STATE */}
               <Card className="bg-card/80 border-gold/20 shadow-xl">
                 <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><Play className="w-3.5 h-3.5 text-gold" /> System State</CardTitle></CardHeader>
                 <CardContent className="pt-2"><Button className="w-full font-black tracking-tighter" variant={isPaused ? "default" : "outline"} onClick={() => handleAction(isPaused ? "unpause" : "pause", [], "System updated")} >{isPaused ? <Play className="w-4 h-4 mr-2 fill-current" /> : <Pause className="w-4 h-4 mr-2 fill-current" />}{isPaused ? "RESUME GAMES" : "PAUSE PROTOCOL"}</Button></CardContent>
               </Card>
 
-              {/* FUND SECTION */}
               <Card className="bg-card/80 border-gold/20 shadow-xl lg:col-span-1">
                 <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><ArrowUpCircle className="w-3.5 h-3.5 text-gold" /> Fund Bankroll</CardTitle></CardHeader>
                 <CardContent className="space-y-4 pt-2">
@@ -207,13 +198,12 @@ export default function AdminPage() {
                     <Input placeholder="0.00" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} className="bg-background/50 h-10 font-mono" />
                     <div className="flex gap-2">
                       <Button className="flex-1 bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30" variant="outline" onClick={() => handleAction("fundContract", [], "Contract funded with CELO", parseEther(fundAmount))}>Fund CELO</Button>
-                      <Button className="flex-1 bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30" variant="outline" onClick={() => handleAction("transfer", [FLIPEN_PROXY_ADDRESS as `0x${string}`, parseUnits(fundAmount, 18)], "Contract funded with cUSD", undefined, ERC20_ABI)}>Fund cUSD</Button>
+                      <Button className="flex-1 bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30" variant="outline" onClick={() => proxyAddress && handleAction("transfer", [proxyAddress, parseUnits(fundAmount, 18)], "Contract funded with cUSD", undefined, ERC20_ABI)}>Fund cUSD</Button>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* WITHDRAW SECTION */}
               <Card className="bg-card/80 border-gold/20 shadow-xl lg:col-span-2">
                 <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><ArrowDownCircle className="w-3.5 h-3.5 text-gold" /> Withdraw Profits</CardTitle></CardHeader>
                 <CardContent className="space-y-4 pt-2">
@@ -221,13 +211,12 @@ export default function AdminPage() {
                     <Input placeholder="0.00" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="bg-background/50 h-12 font-mono text-lg" />
                     <div className="flex gap-2 flex-1">
                       <Button variant="outline" className="flex-1 h-12 font-bold border-gold/30 hover:bg-gold/10" onClick={() => handleAction("withdrawCELO", [parseEther(withdrawAmount)], "CELO withdrawn")}>CELO</Button>
-                      <Button variant="outline" className="flex-1 h-12 font-bold border-gold/30 hover:bg-gold/10" onClick={() => currentCUSD && handleAction("withdrawToken", [currentCUSD, parseUnits(withdrawAmount, 18)], "cUSD withdrawn")}>cUSD</Button>
+                      <Button variant="outline" className="flex-1 h-12 font-bold border-gold/30 hover:bg-gold/10" onClick={() => currentCUSD && handleAction("withdrawToken", [(currentCUSD as string), parseUnits(withdrawAmount, 18)], "cUSD withdrawn")}>cUSD</Button>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* CONFIG SECTION */}
               <Card className="bg-card/80 border-gold/20 shadow-xl lg:col-span-1">
                 <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><Settings className="w-3.5 h-3.5 text-gold" /> Configuration</CardTitle></CardHeader>
                 <CardContent className="space-y-4 pt-2">
@@ -240,7 +229,6 @@ export default function AdminPage() {
                   </div>
                 </CardContent>
               </Card>
-
             </div>
           </main>
         </div>

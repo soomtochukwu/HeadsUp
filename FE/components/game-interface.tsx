@@ -9,27 +9,23 @@ import { Badge } from "@/components/ui/badge"
 import { Coins, Zap, TrendingUp, Sparkles, RotateCcw, Loader2, AlertCircle, ShieldCheck } from "lucide-react"
 import { useAccount, useWriteContract, useBalance, useReadContract, usePublicClient } from "wagmi"
 import { parseEther, parseUnits, formatUnits, decodeEventLog } from "viem"
-import { FLIPEN_PROXY_ADDRESS } from "@/contracts/addresses"
+import { FLIPEN_ADDRESSES } from "@/contracts/addresses"
 import { toast } from "sonner"
+
+// Import ABIs
+import SEPOLIA_ABI from "@/contracts/sepolia-abi.json"
+import MAINNET_ABI from "@/contracts/celo-abi.json"
 
 const CUSD_CONTRACTS: Record<number, `0x${string}`> = {
   42220: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
   11142220: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1",
 }
 
-const FLIPEN_ABI = [
-  { "type": "function", "name": "flipCoin", "stateMutability": "payable", "inputs": [{ "type": "uint8", "name": "choice" }], "outputs": [] },
-  { "type": "function", "name": "flipCoinERC20", "stateMutability": "nonpayable", "inputs": [{ "type": "uint8", "name": "choice" }, { "type": "uint256", "name": "amount" }, { "type": "address", "name": "token" }], "outputs": [] },
-  { "type": "function", "name": "resolveGame", "stateMutability": "nonpayable", "inputs": [{ "type": "uint256", "name": "gameId" }], "outputs": [] },
-  { "type": "function", "name": "getPlayerGames", "stateMutability": "view", "inputs": [{ "type": "address", "name": "player" }], "outputs": [{ "type": "uint256[]" }] },
-  { "type": "function", "name": "getGameDetails", "stateMutability": "view", "inputs": [{ "type": "uint256", "name": "requestId" }], "outputs": [{ "type": "tuple", "components": [{ "type": "address", "name": "player" }, { "type": "uint256", "name": "amount" }, { "type": "uint8", "name": "playerChoice" }, { "type": "uint8", "name": "status" }, { "type": "bool", "name": "won" }, { "type": "uint256", "name": "timestamp" }, { "type": "uint256", "name": "commitBlock" }, { "type": "uint256", "name": "randomNumber" }, { "type": "uint8", "name": "coinResult" }, { "type": "address", "name": "token" }] }] },
-  { "type": "event", "name": "GameResult", "inputs": [{ "type": "uint256", "name": "requestId", "indexed": true }, { "type": "address", "name": "player", "indexed": true }, { "type": "uint256", "name": "amount", "indexed": false }, { "type": "uint8", "name": "playerChoice", "indexed": false }, { "type": "uint8", "name": "result", "indexed": false }, { "type": "bool", "name": "won", "indexed": false }, { "type": "uint256", "name": "payout", "indexed": false }, { "type": "uint256", "name": "randomNumber", "indexed": false }, { "type": "uint256", "name": "timestamp", "indexed": false }, { "type": "address", "name": "token", "indexed": false }] }
-] as const
-
 const ERC20_ABI = [
   { "type": "function", "name": "approve", "stateMutability": "nonpayable", "inputs": [{ "type": "address", "name": "spender" }, { "type": "uint256", "name": "amount" }], "outputs": [{ "type": "bool" }] },
   { "type": "function", "name": "allowance", "stateMutability": "view", "inputs": [{ "type": "address", "name": "owner" }, { "type": "address", "name": "spender" }], "outputs": [{ "type": "uint256" }] },
-  { "type": "function", "name": "balanceOf", "stateMutability": "view", "inputs": [{ "name": "account", "type": "address" }], "outputs": [{ "type": "uint256" }] }
+  { "type": "function", "name": "balanceOf", "stateMutability": "view", "inputs": [{ "name": "account", "type": "address" }], "outputs": [{ "type": "uint256" }] },
+  { "type": "function", "name": "transfer", "stateMutability": "nonpayable", "inputs": [{ "type": "address", "name": "to" }, { "type": "uint256", "name": "amount" }], "outputs": [{ "type": "bool" }] }
 ] as const
 
 export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAsset: string, setSelectedAsset: (asset: string) => void }) {
@@ -42,7 +38,10 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
   const [pendingGameId, setPendingGameId] = useState<bigint | null>(null)
   const [gameResult, setGameResult] = useState<{ result: "heads" | "tails", won: boolean, payout: string } | null>(null)
 
-  const cUSDAddress = chainId ? CUSD_CONTRACTS[chainId] : undefined
+  // Dynamic Resource Selection
+  const proxyAddress = useMemo(() => chainId ? FLIPEN_ADDRESSES[chainId] : undefined, [chainId])
+  const contractABI = useMemo(() => chainId === 42220 ? MAINNET_ABI : SEPOLIA_ABI, [chainId])
+  const cUSDAddress = useMemo(() => chainId ? CUSD_CONTRACTS[chainId] : undefined, [chainId])
 
   // User Balances
   const { data: celoBalance } = useBalance({ address, query: { enabled: !!address, refetchInterval: 10000 } })
@@ -55,13 +54,16 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
   })
 
   // CONTRACT BANKROLL
-  const { data: contractCeloBalance } = useBalance({ address: FLIPEN_PROXY_ADDRESS as `0x${string}`, query: { refetchInterval: 15000 } })
+  const { data: contractCeloBalance } = useBalance({ 
+    address: proxyAddress, 
+    query: { enabled: !!proxyAddress, refetchInterval: 15000 } 
+  })
   const { data: contractCusdBalanceRaw } = useReadContract({
     address: cUSDAddress,
     abi: ERC20_ABI,
     functionName: 'balanceOf',
-    args: [FLIPEN_PROXY_ADDRESS as `0x${string}`],
-    query: { enabled: !!cUSDAddress, refetchInterval: 15000 }
+    args: proxyAddress ? [proxyAddress] : undefined,
+    query: { enabled: !!cUSDAddress && !!proxyAddress, refetchInterval: 15000 }
   })
 
   const { writeContractAsync } = useWriteContract()
@@ -69,8 +71,8 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
     address: cUSDAddress,
     abi: ERC20_ABI,
     functionName: "allowance",
-    args: address && FLIPEN_PROXY_ADDRESS ? [address, FLIPEN_PROXY_ADDRESS as `0x${string}`] : undefined,
-    query: { enabled: !!address && !!cUSDAddress && selectedAsset === "cUSD" }
+    args: address && proxyAddress ? [address, proxyAddress] : undefined,
+    query: { enabled: !!address && !!cUSDAddress && !!proxyAddress && selectedAsset === "cUSD" }
   })
 
   const formatValue = (val: any, decimals = 18) => {
@@ -100,12 +102,12 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
   const currentAsset = currentAssets.find(asset => asset.symbol === selectedAsset) || currentAssets[0]
 
   const resolveGame = useCallback(async (gameId: bigint) => {
-    if (!publicClient) return
+    if (!publicClient || !proxyAddress) return
     try {
       setGameState("REVEALING")
       const hash = await writeContractAsync({
-        address: FLIPEN_PROXY_ADDRESS as `0x${string}`,
-        abi: FLIPEN_ABI,
+        address: proxyAddress,
+        abi: contractABI as any,
         functionName: "resolveGame",
         args: [gameId],
       })
@@ -113,7 +115,6 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
       toast.info("Revealing coin...")
       const receipt = await publicClient.waitForTransactionReceipt({ hash })
       
-      // PARSE THE EVENT LOG FOR RELIABLE RESULT
       let won = false
       let coinResult = 0
       let payout = "0.0000"
@@ -121,12 +122,12 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
       for (const log of receipt.logs) {
         try {
           const event = decodeEventLog({
-            abi: FLIPEN_ABI,
+            abi: contractABI as any,
             data: log.data,
             topics: log.topics,
-          })
+          }) as any
           if (event.eventName === 'GameResult') {
-            const args = event.args as any
+            const args = event.args
             won = args.won
             coinResult = args.result
             payout = (Number(args.payout) / 1e18).toFixed(4)
@@ -153,12 +154,12 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
       toast.error(error.shortMessage || "Resolution failed")
       setGameState("WAITING_BLOCK")
     }
-  }, [writeContractAsync, publicClient, selectedAsset])
+  }, [writeContractAsync, publicClient, selectedAsset, proxyAddress, contractABI])
 
   const flipCoin = useCallback(async () => {
-    if (!selectedSide || !address || !publicClient) return
+    if (!selectedSide || !address || !publicClient || !proxyAddress) return
     if (!canAffordPayout) {
-      toast.error("Contract bankroll is too low for this bet. Please lower your amount.")
+      toast.error("Contract bankroll is too low for this bet.")
       return
     }
 
@@ -167,23 +168,46 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
       setGameResult(null)
       const choice = selectedSide === "tails" ? 0 : 1
       let hash: `0x${string}`
+
       if (selectedAsset === "CELO") {
-        hash = await writeContractAsync({ address: FLIPEN_PROXY_ADDRESS as `0x${string}`, abi: FLIPEN_ABI, functionName: "flipCoin", args: [choice], value: parseEther(betAmount[0].toString()) })
+        hash = await writeContractAsync({
+          address: proxyAddress,
+          abi: contractABI as any,
+          functionName: "flipCoin",
+          args: [choice],
+          value: parseEther(betAmount[0].toString()),
+        })
       } else {
         const amount = parseUnits(betAmount[0].toString(), 18)
         if (!allowance || (allowance as bigint) < amount) {
           toast.info("Approving cUSD...")
-          await writeContractAsync({ address: cUSDAddress!, abi: ERC20_ABI, functionName: "approve", args: [FLIPEN_PROXY_ADDRESS as `0x${string}`, amount] })
+          await writeContractAsync({
+            address: cUSDAddress!,
+            abi: ERC20_ABI,
+            functionName: "approve",
+            args: [proxyAddress, amount],
+          })
           await new Promise(resolve => setTimeout(resolve, 4000))
           await refetchAllowance()
         }
-        hash = await writeContractAsync({ address: FLIPEN_PROXY_ADDRESS as `0x${string}`, abi: FLIPEN_ABI, functionName: "flipCoinERC20", args: [choice, amount, cUSDAddress!] })
+        hash = await writeContractAsync({
+          address: proxyAddress,
+          abi: contractABI as any,
+          functionName: "flipCoinERC20",
+          args: [choice, amount, cUSDAddress!],
+        })
       }
+
       toast.info("Bet placed! Confirming...")
       await publicClient.waitForTransactionReceipt({ hash })
       
-      // Get the gameId from the logs
-      const playerGames = await publicClient.readContract({ address: FLIPEN_PROXY_ADDRESS as `0x${string}`, abi: FLIPEN_ABI, functionName: "getPlayerGames", args: [address] }) as bigint[]
+      const playerGames = await publicClient.readContract({
+        address: proxyAddress,
+        abi: contractABI as any,
+        functionName: "getPlayerGames",
+        args: [address],
+      }) as bigint[]
+      
       setPendingGameId(playerGames[playerGames.length - 1])
       setGameState("WAITING_BLOCK")
       toast.success("Coin is flipping! Wait for the next block to reveal.")
@@ -192,7 +216,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
       toast.error(error.shortMessage || "Transaction failed")
       setGameState("IDLE")
     }
-  }, [selectedSide, address, selectedAsset, betAmount, writeContractAsync, allowance, cUSDAddress, refetchAllowance, publicClient, canAffordPayout])
+  }, [selectedSide, address, selectedAsset, betAmount, writeContractAsync, allowance, cUSDAddress, refetchAllowance, publicClient, canAffordPayout, proxyAddress, contractABI])
 
   return (
     <div className="min-h-0 md:h-full flex flex-col">

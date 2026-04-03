@@ -50,8 +50,6 @@ async function main(): Promise<void> {
 
   console.log("Flipen Proxy Contract Deployed at:", proxyAddress);
   console.log("");
-  console.log(">>>DEPLOYER:", deployer.address);
-  console.log("");
 
   // Wait a bit for the proxy to be fully initialized
   console.log("Waiting for proxy initialization...");
@@ -60,115 +58,63 @@ async function main(): Promise<void> {
   // Get implementation address with retry logic
   const implementationAddress = await getImplementationAddressWithRetry(proxyAddress);
 
-  // Save contract addresses to TypeScript file
-  const contractAddresses = {
+  // PREPARE FE ADDRESSES FILE
+  const frontendContractsDir = path.join(__dirname, "../../FE/contracts");
+  const frontendTsPath = path.join(frontendContractsDir, "addresses.ts");
+  
+  let currentAddresses: any = {};
+  if (fs.existsSync(frontendTsPath)) {
+    // Very simple parsing of the existing TS file to maintain data across deployments
+    const content = fs.readFileSync(frontendTsPath, 'utf8');
+    const match = content.match(/export const contractAddresses: any = ({[\s\S]*?});/);
+    if (match) {
+      try {
+        // Evaluate the object safely
+        currentAddresses = eval(`(${match[1]})`);
+      } catch (e) {
+        console.log("Error parsing existing addresses, starting fresh.");
+      }
+    }
+  }
+
+  // Update only the current network
+  currentAddresses[network.name] = {
     proxyAddress: proxyAddress,
     implementationAddress: implementationAddress,
-    network: network.name,
     deployedAt: new Date().toISOString(),
     deployer: deployer.address,
   };
 
-  // Create the addresses directory if it doesn't exist
-  const addressesDir = path.join(__dirname, "../addresses");
-  if (!fs.existsSync(addressesDir)) {
-    fs.mkdirSync(addressesDir, { recursive: true });
-  }
-
-  // Generate TypeScript file content
+  // Generate multi-network TypeScript file content
   const tsContent = `// Auto-generated file - Do not edit manually
 // Generated on: ${new Date().toISOString()}
-// Network: ${network.name}
 
-export interface ContractAddresses {
-  proxyAddress: string;
-  implementationAddress: string;
-  network: string;
-  deployedAt: string;
-  deployer: string;
-}
+export const contractAddresses: any = ${JSON.stringify(currentAddresses, null, 2)};
 
-export const contractAddresses: ContractAddresses = {
-  proxyAddress: "${proxyAddress}",
-  implementationAddress: "${implementationAddress}",
-  network: "${network.name}",
-  deployedAt: "${new Date().toISOString()}",
-  deployer: "${deployer.address}"
+// Helpers for specific network access
+export const getContractAddress = (networkName: string) => {
+  return contractAddresses[networkName]?.proxyAddress || contractAddresses['sepolia']?.proxyAddress;
 };
 
-// Export individual addresses for convenience
-export const FLIPEN_PROXY_ADDRESS = "${proxyAddress}";
-export const FLIPEN_IMPLEMENTATION_ADDRESS = "${implementationAddress}";
-
-export default contractAddresses;
+// Map chain IDs to contract addresses
+export const FLIPEN_ADDRESSES: Record<number, \`0x\${string}\`> = {
+  42220: "${currentAddresses['celo']?.proxyAddress || ''}" as \`0x\${string}\`,
+  11142220: "${currentAddresses['sepolia']?.proxyAddress || ''}" as \`0x\${string}\`,
+};
 `;
 
   // Write to TypeScript file
-  const tsFilePath = path.join(
-    addressesDir,
-    `${network.name}-addresses.ts`
-  );
-  fs.writeFileSync(tsFilePath, tsContent);
-  console.log(`Contract addresses saved to: ${tsFilePath}`);
-
-  // Also save as JSON for backup
-  const jsonFilePath = path.join(
-    addressesDir,
-    `${network.name}-addresses.json`
-  );
-  fs.writeFileSync(jsonFilePath, JSON.stringify(contractAddresses, null, 2));
-  console.log(`Contract addresses also saved as JSON to: ${jsonFilePath}`);
+  fs.writeFileSync(frontendTsPath, tsContent);
+  console.log(`Contract addresses updated in frontend: ${frontendTsPath}`);
 
   // Extract and save contract ABI
   const contractABI = Flipen.interface.formatJson();
-  const abiFilePath = path.join(
-    addressesDir,
-    `${network.name}-abi.json`
-  );
+  const abiFilePath = path.join(frontendContractsDir, `${network.name}-abi.json`);
   fs.writeFileSync(abiFilePath, contractABI);
-  console.log(`Contract ABI saved to: ${abiFilePath}`);
-
-  // Copy the TypeScript file to frontend contracts directory
-  const frontendContractsDir = path.join(__dirname, "../../FE/contracts");
-  
-  // Create the frontend contracts directory if it doesn't exist
-  if (!fs.existsSync(frontendContractsDir)) {
-    fs.mkdirSync(frontendContractsDir, { recursive: true });
-    console.log(`Created frontend contracts directory: ${frontendContractsDir}`);
-  }
-  
-  const frontendTsPath = path.join(frontendContractsDir, "addresses.ts");
-  fs.copyFileSync(tsFilePath, frontendTsPath);
-  console.log(`Contract addresses copied to frontend: ${frontendTsPath}`);
-
-  // Copy the ABI file to frontend contracts directory
-  const frontendAbiPath = path.join(frontendContractsDir, `${network.name}-abi.json`);
-  fs.copyFileSync(abiFilePath, frontendAbiPath);
-  console.log(`Contract ABI copied to frontend: ${frontendAbiPath}`);
+  console.log(`Contract ABI saved to frontend: ${abiFilePath}`);
 
   console.log("");
-
-  // Test the deployed contract
-  console.log("Testing deployed contract...");
-  try {
-    const flipenInstance = await ethers.getContractAt(
-      "Flipen",
-      proxyAddress,
-      deployer
-    );
-    
-    const version = await flipenInstance.version();
-    console.log("Contract version:", version);
-    
-    const owner = await flipenInstance.owner();
-    console.log("Contract owner:", owner);
-    
-    console.log("✅ Contract deployment and testing successful!");
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.log("⚠️  Contract testing failed:", errorMessage);
-    console.log("But deployment was successful. Proxy address:", proxyAddress);
-  }
+  console.log("✅ Deployment successful!");
 }
 
 main()
