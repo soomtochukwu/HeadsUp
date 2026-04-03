@@ -58,7 +58,7 @@ export default function AdminPage() {
   const { data: celoBankroll, refetch: refetchCelo } = useBalance({ address: proxyAddress, chainId: chainId, query: { enabled: !!isCorrectChain && !!proxyAddress, refetchInterval: 5000 } })
   const { data: cusdBalanceRaw, refetch: refetchCusdBalance } = useReadContract({
     address: currentCUSD,
-    abi: [ { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] } ],
+    abi: [{ type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] }],
     functionName: 'balanceOf',
     args: proxyAddress ? [proxyAddress] : undefined,
     query: { enabled: !!isCorrectChain && !!currentCUSD && !!proxyAddress, refetchInterval: 5000 }
