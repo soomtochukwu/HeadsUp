@@ -270,12 +270,12 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
 
   return (
     <div className="min-h-0 md:h-full flex flex-col">
-      <div className="flex-1 md:overflow-y-auto">
-        <div className="space-y-6 md:space-y-4 lg:space-y-3 p-4 md:p-3 lg:p-2">
+      <div className="flex-1 md:overflow-y-auto flex flex-col">
+        <div className="flex-1 flex flex-col space-y-6 md:space-y-4 lg:space-y-6 p-4 md:p-3 lg:p-6 lg:justify-evenly">
           
           {/* Main Display: Dynamic Asset Coin */}
-          <div className="flex justify-center py-4">
-            <div className={`relative w-40 h-40 rounded-full border-4 border-gold/40 flex items-center justify-center transition-all duration-500 shadow-[0_0_40px_rgba(218,165,32,0.3)] bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 ${gameState !== "IDLE" ? 'animate-pulse' : 'hover:scale-105'}`}>
+          <div className="flex justify-center py-4 lg:py-0 lg:flex-1 lg:items-center">
+            <div className={`relative w-40 h-40 lg:w-56 lg:h-56 xl:w-64 xl:h-64 rounded-full border-4 border-gold/40 flex items-center justify-center transition-all duration-500 shadow-[0_0_40px_rgba(218,165,32,0.3)] bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 ${gameState !== "IDLE" ? 'animate-pulse' : 'hover:scale-105'}`}>
               {/* Metallic Engraving Effect */}
               <div className="absolute inset-2 rounded-full border border-black/10 shadow-inner" />
               
@@ -284,14 +284,14 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
               <div className="relative flex flex-col items-center justify-center text-black drop-shadow-md">
                 {gameResult ? (
                   <>
-                    <span className="text-5xl mb-1">{gameResult.result === "heads" ? "👑" : "💰"}</span>
-                    <span className="text-[12px] font-black uppercase tracking-widest opacity-80">{selectedAsset}</span>
+                    <span className="text-5xl lg:text-7xl xl:text-8xl mb-1">{gameResult.result === "heads" ? "👑" : "💰"}</span>
+                    <span className="text-[12px] lg:text-sm xl:text-base font-black uppercase tracking-widest opacity-80">{selectedAsset}</span>
                   </>
                 ) : (
                   <>
-                    <span className="text-2xl font-black tracking-tighter mb-0.5">{selectedAsset}</span>
-                    <div className="w-12 h-0.5 bg-black/20 rounded-full mb-1" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">FLIPEN</span>
+                    <span className="text-2xl lg:text-4xl xl:text-5xl font-black tracking-tighter mb-0.5">{selectedAsset}</span>
+                    <div className="w-12 lg:w-16 xl:w-20 h-0.5 lg:h-1 bg-black/20 rounded-full mb-1" />
+                    <span className="text-[10px] lg:text-xs xl:text-sm font-bold uppercase tracking-widest opacity-70">FLIPEN</span>
                   </>
                 )}
               </div>
@@ -299,66 +299,68 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
           </div>
 
           {gameResult && (
-            <Card className="bg-card/80 backdrop-blur-sm border-gold/20 mx-auto max-w-sm text-center p-6 shadow-2xl relative">
-              <button onClick={() => setGameResult(null)} className="absolute top-2 right-2 p-1 text-muted-foreground hover:text-white transition-colors">
-                <XCircle className="w-4 h-4" />
-              </button>
-              <div className={`text-3xl font-black mb-2 tracking-tighter ${gameResult.won ? 'text-green-400 animate-pulse' : 'text-red-400'}`}>
-                {gameResult.won ? 'YOU WON!' : 'YOU LOST'}
-              </div>
-              <div className="text-muted-foreground mb-4 text-sm font-medium">
-                The coin landed on <span className="text-foreground font-bold">{gameResult.result.toUpperCase()}</span>
-              </div>
-              {gameResult.won && (
-                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 mb-4">
-                  <div className="text-xs text-green-400 uppercase font-bold">Total Payout</div>
-                  <div className="text-2xl font-black text-green-400">+{gameResult.payout} {selectedAsset}</div>
+            <div className="lg:flex-1 flex flex-col justify-center">
+              <Card className="bg-card/80 backdrop-blur-sm border-gold/20 w-full max-w-sm lg:max-w-md xl:max-w-lg mx-auto text-center p-6 shadow-2xl relative">
+                <button onClick={() => setGameResult(null)} className="absolute top-2 right-2 p-1 text-muted-foreground hover:text-white transition-colors">
+                  <XCircle className="w-4 h-4" />
+                </button>
+                <div className={`text-3xl lg:text-4xl font-black mb-2 tracking-tighter ${gameResult.won ? 'text-green-400 animate-pulse' : 'text-red-400'}`}>
+                  {gameResult.won ? 'YOU WON!' : 'YOU LOST'}
                 </div>
-              )}
-              <Button onClick={() => { setGameResult(null); setSelectedSide(null); }} className="w-full bg-gold hover:bg-gold-dark text-black font-bold">
-                <RotateCcw className="w-4 h-4 mr-2" /> PLAY AGAIN
-              </Button>
-            </Card>
+                <div className="text-muted-foreground mb-4 text-sm lg:text-base font-medium">
+                  The coin landed on <span className="text-foreground font-bold">{gameResult.result.toUpperCase()}</span>
+                </div>
+                {gameResult.won && (
+                  <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 lg:p-4 mb-4">
+                    <div className="text-xs lg:text-sm text-green-400 uppercase font-bold">Total Payout</div>
+                    <div className="text-2xl lg:text-3xl font-black text-green-400">+{gameResult.payout} {selectedAsset}</div>
+                  </div>
+                )}
+                <Button onClick={() => { setGameResult(null); setSelectedSide(null); }} className="w-full lg:h-14 lg:text-lg bg-gold hover:bg-gold-dark text-black font-bold">
+                  <RotateCcw className="w-4 h-4 lg:w-5 lg:h-5 mr-2" /> PLAY AGAIN
+                </Button>
+              </Card>
+            </div>
           )}
 
           {gameState === "IDLE" && !gameResult && (
-            <>
-              <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
-                <Button variant={selectedSide === "heads" ? "default" : "outline"} onClick={() => setSelectedSide("heads")} className={`h-20 ${selectedSide === "heads" ? 'bg-gold text-black border-gold shadow-[0_0_15px_rgba(218,165,32,0.3)]' : 'border-gold/30 hover:border-gold/60'}`}><div className="flex flex-col"><span className="text-2xl">👑</span><span className="font-bold">HEADS</span></div></Button>
-                <Button variant={selectedSide === "tails" ? "default" : "outline"} onClick={() => setSelectedSide("tails")} className={`h-20 ${selectedSide === "tails" ? 'bg-gold text-black border-gold shadow-[0_0_15px_rgba(218,165,32,0.3)]' : 'border-gold/30 hover:border-gold/60'}`}><div className="flex flex-col"><span className="text-2xl">💰</span><span className="font-bold">TAILS</span></div></Button>
+            <div className="lg:flex-1 flex flex-col justify-center space-y-6 lg:space-y-8">
+              <div className="grid grid-cols-2 gap-4 lg:gap-8 w-full max-w-sm lg:max-w-3xl xl:max-w-4xl mx-auto lg:flex-1">
+                <Button variant={selectedSide === "heads" ? "default" : "outline"} onClick={() => setSelectedSide("heads")} className={`h-20 lg:h-full ${selectedSide === "heads" ? 'bg-gold text-black border-gold shadow-[0_0_15px_rgba(218,165,32,0.3)]' : 'border-gold/30 hover:border-gold/60'}`}><div className="flex flex-col items-center justify-center h-full"><span className="text-2xl lg:text-5xl xl:text-6xl mb-1 lg:mb-2">👑</span><span className="font-bold lg:text-xl xl:text-2xl">HEADS</span></div></Button>
+                <Button variant={selectedSide === "tails" ? "default" : "outline"} onClick={() => setSelectedSide("tails")} className={`h-20 lg:h-full ${selectedSide === "tails" ? 'bg-gold text-black border-gold shadow-[0_0_15px_rgba(218,165,32,0.3)]' : 'border-gold/30 hover:border-gold/60'}`}><div className="flex flex-col items-center justify-center h-full"><span className="text-2xl lg:text-5xl xl:text-6xl mb-1 lg:mb-2">💰</span><span className="font-bold lg:text-xl xl:text-2xl">TAILS</span></div></Button>
               </div>
 
-              <Card className="bg-card/80 border-gold/20 max-w-sm mx-auto p-4 space-y-4 shadow-xl">
-                <div className="flex justify-between items-center text-xs"><label className="text-cyan-400 font-bold uppercase flex items-center gap-1"><Coins className="w-3 h-3" /> Asset</label><Badge variant="outline" className="text-[10px] bg-gold/5 border-gold/20">{currentAsset.network}</Badge></div>
-                <Select value={selectedAsset} onValueChange={setSelectedAsset}><SelectTrigger className="border-gold/30 h-10 bg-muted/20"><SelectValue /></SelectTrigger><SelectContent>{currentAssets.map(a => <SelectItem key={a.symbol} value={a.symbol}>{a.icon} {a.symbol} ({a.balance})</SelectItem>)}</SelectContent></Select>
+              <Card className="bg-card/80 border-gold/20 w-full max-w-sm lg:max-w-3xl xl:max-w-4xl mx-auto p-4 lg:p-8 flex flex-col justify-center space-y-4 lg:space-y-8 shadow-xl lg:flex-1">
+                <div className="flex justify-between items-center text-xs lg:text-base"><label className="text-cyan-400 font-bold uppercase flex items-center gap-1"><Coins className="w-3 h-3 lg:w-5 lg:h-5" /> Asset</label><Badge variant="outline" className="text-[10px] lg:text-sm bg-gold/5 border-gold/20">{currentAsset.network}</Badge></div>
+                <Select value={selectedAsset} onValueChange={setSelectedAsset}><SelectTrigger className="border-gold/30 h-10 lg:h-14 bg-muted/20 lg:text-lg"><SelectValue /></SelectTrigger><SelectContent>{currentAssets.map(a => <SelectItem key={a.symbol} value={a.symbol} className="lg:text-lg">{a.icon} {a.symbol} ({a.balance})</SelectItem>)}</SelectContent></Select>
                 
-                <div className="flex justify-between items-center text-xs">
-                  <label className="text-cyan-400 font-bold uppercase flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Bet Amount</label>
-                  <div className="text-right"><span className="font-bold text-gold block">{betAmount[0].toFixed(2)} {selectedAsset}</span><span className="text-[9px] text-muted-foreground uppercase font-black tracking-tighter">Min: {formattedMin} | Max: {formattedMax}</span></div>
+                <div className="flex justify-between items-center text-xs lg:text-base">
+                  <label className="text-cyan-400 font-bold uppercase flex items-center gap-1"><TrendingUp className="w-3 h-3 lg:w-5 lg:h-5" /> Bet Amount</label>
+                  <div className="text-right"><span className="font-bold text-gold block lg:text-xl">{betAmount[0].toFixed(2)} {selectedAsset}</span><span className="text-[9px] lg:text-xs text-muted-foreground uppercase font-black tracking-tighter">Min: {formattedMin} | Max: {formattedMax}</span></div>
                 </div>
-                <Slider value={betAmount} onValueChange={setBetAmount} max={formattedMax > 0 ? formattedMax : 10} min={formattedMin} step={0.01} className="py-2" />
+                <Slider value={betAmount} onValueChange={setBetAmount} max={formattedMax > 0 ? formattedMax : 10} min={formattedMin} step={0.01} className="py-2 lg:py-6" />
                 
-                <div className="pt-2 border-t border-gold/10 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    {canAffordPayout ? <ShieldCheck className="w-3.5 h-3.5 text-green-500" /> : <AlertCircle className="w-3.5 h-3.5 text-red-500" />}
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground">House Bankroll</span>
+                <div className="pt-2 lg:pt-6 border-t border-gold/10 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 lg:gap-3">
+                    {canAffordPayout ? <ShieldCheck className="w-3.5 h-3.5 lg:w-5 lg:h-5 text-green-500" /> : <AlertCircle className="w-3.5 h-3.5 lg:w-5 lg:h-5 text-red-500" />}
+                    <span className="text-[10px] lg:text-sm uppercase font-bold text-muted-foreground">House Bankroll</span>
                   </div>
-                  <span className={`text-[10px] font-mono font-bold ${canAffordPayout ? 'text-green-400' : 'text-red-400'}`}>{bankroll.toFixed(2)} {selectedAsset}</span>
+                  <span className={`text-[10px] lg:text-sm font-mono font-bold ${canAffordPayout ? 'text-green-400' : 'text-red-400'}`}>{bankroll.toFixed(2)} {selectedAsset}</span>
                 </div>
               </Card>
-            </>
+            </div>
           )}
 
           {gameState === "WAITING_BLOCK" && (
-            <div className="text-center space-y-4 py-8">
-              <div className="text-xl font-black text-gold animate-pulse uppercase tracking-tighter">The Oracle is Deciding...</div>
-              <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest px-4 opacity-60">Wait for the block to confirm your destiny</p>
+            <div className="lg:flex-1 flex flex-col justify-center text-center space-y-4 lg:space-y-6 py-8">
+              <div className="text-xl lg:text-3xl font-black text-gold animate-pulse uppercase tracking-tighter">The Oracle is Deciding...</div>
+              <p className="text-muted-foreground text-[10px] lg:text-sm font-bold uppercase tracking-widest px-4 opacity-60">Wait for the block to confirm your destiny</p>
               
-              <div className="max-w-sm mx-auto">
+              <div className="w-full max-w-sm lg:max-w-md xl:max-w-lg mx-auto">
                 <Button 
                   onClick={() => pendingGameId && resolveGame(pendingGameId)} 
                   disabled={catchTimer > 0}
-                  className={`h-20 w-full shadow-2xl text-xl font-black transition-all ${
+                  className={`h-20 lg:h-24 w-full shadow-2xl text-xl lg:text-2xl font-black transition-all ${
                     catchTimer > 0 
                     ? 'bg-muted text-muted-foreground cursor-wait grayscale' 
                     : 'bg-green-600 hover:bg-green-500 text-white hover:scale-[1.02] shadow-green-500/20'
@@ -373,20 +375,20 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
       </div>
 
       {gameState === "IDLE" && !gameResult && (
-        <div className="p-4 border-t border-gold/20 sticky bottom-0 bg-background/80 backdrop-blur-sm">
+        <div className="p-4 lg:p-6 border-t border-gold/20 sticky bottom-0 bg-background/80 backdrop-blur-sm z-10 shrink-0">
           {!isConnected ? (
-            <Button disabled className="w-full h-16 text-xl font-bold bg-muted text-muted-foreground">CONNECT WALLET</Button>
+            <Button disabled className="w-full h-16 lg:h-20 text-xl lg:text-2xl font-bold bg-muted text-muted-foreground">CONNECT WALLET</Button>
           ) : !isWithinLimits ? (
-            <Button disabled className="w-full h-16 text-base font-bold bg-red-500/20 text-red-400 border border-red-500/30">
+            <Button disabled className="w-full h-16 lg:h-20 text-base lg:text-xl font-bold bg-red-500/20 text-red-400 border border-red-500/30">
               BET MUST BE {formattedMin}-{formattedMax} {selectedAsset}
             </Button>
           ) : !canAffordPayout ? (
-            <Button disabled className="w-full h-16 text-xl font-bold bg-muted text-muted-foreground">INSUFFICIENT HOUSE BANKROLL</Button>
+            <Button disabled className="w-full h-16 lg:h-20 text-xl lg:text-2xl font-bold bg-muted text-muted-foreground">INSUFFICIENT HOUSE BANKROLL</Button>
           ) : !selectedSide ? (
-            <Button disabled className="w-full h-16 text-xl font-bold bg-muted/50 text-muted-foreground border border-gold/10">SELECT A SIDE</Button>
+            <Button disabled className="w-full h-16 lg:h-20 text-xl lg:text-2xl font-bold bg-muted/50 text-muted-foreground border border-gold/10">SELECT A SIDE</Button>
           ) : (
-            <Button onClick={flipCoin} className="w-full h-16 text-xl font-black bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-black shadow-2xl shadow-gold/20 border-t border-white/20 transition-all active:scale-95">
-              <Coins className="mr-2 h-6 w-6" /> FLIP {betAmount[0].toFixed(2)} {selectedAsset}
+            <Button onClick={flipCoin} className="w-full h-16 lg:h-20 text-xl lg:text-2xl font-black bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-black shadow-2xl shadow-gold/20 border-t border-white/20 transition-all active:scale-95">
+              <Coins className="mr-2 h-6 w-6 lg:h-8 lg:w-8" /> FLIP {betAmount[0].toFixed(2)} {selectedAsset}
             </Button>
           )}
         </div>

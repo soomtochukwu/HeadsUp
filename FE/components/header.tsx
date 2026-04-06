@@ -126,21 +126,19 @@ export function Header({
       </aside>
 
       <header className="border-b border-gold bg-card/50 backdrop-blur-sm relative z-40">
-        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+        <div className="w-full px-4 lg:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            {/* Mobile Logo (Hidden on Desktop) */}
-            <Link href="/" className="lg:hidden flex items-center space-x-2 flex-shrink-0">
-              <div className="w-8 h-8 sm:w-8 sm:h-8 bg-white rounded-full flex items-center justify-center overflow-hidden border border-gold">
-                <img src="/favicon.ico" alt="Flipen Logo" className="w-6 h-6 object-contain" />
+            {/* Title / Logo Area (Left Aligned for all screens) */}
+            <div className="flex flex-col justify-center text-left flex-1">
+              <div className="flex items-center gap-2 mb-0.5">
+                <Link href="/" className="lg:hidden w-7 h-7 sm:w-8 sm:h-8 bg-white rounded-full flex items-center justify-center overflow-hidden border border-gold shrink-0">
+                  <img src="/favicon.ico" alt="Flipen Logo" className="w-5 h-5 sm:w-6 sm:h-6 object-contain" />
+                </Link>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent leading-none m-0 p-0">FLIPEN</h1>
               </div>
-              <div className="flex flex-row items-end gap-1">
-                <span className="text-xl sm:text-2xl font-bold text-gold-gradient font-mono">Flipen</span>
-                <span className="opacity-75 text-xs text-gray-300 p-1 bg-gold-dark/30 rounded-sm">MVP</span>
-              </div>
-            </Link>
-
-            {/* Desktop Spacer */}
-            <div className="hidden lg:block flex-1" />
+              <p className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground font-bold tracking-tight leading-tight mb-0.5">Where Fortune Favors the Bold</p>
+              <p className="text-[9px] sm:text-[10px] lg:text-xs text-gold font-semibold italic tracking-tighter leading-none">Optimized for Celo & MiniPay</p>
+            </div>
 
             {/* Desktop Right Side */}
             <div className="hidden lg:flex items-center space-x-3">
