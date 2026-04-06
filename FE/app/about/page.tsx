@@ -13,18 +13,19 @@ import {
   Info, 
   Lock, 
   RotateCcw, 
-  Smartphone, 
   Coins, 
   ArrowRight,
   MessageCircle,
-  ExternalLink
+  Globe,
+  Database,
+  Monitor
 } from "lucide-react"
 import Link from "next/link"
 
 export default function AboutPage() {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="golden-flip-theme">
-      <div className="min-h-screen bg-background text-foreground relative flex flex-col h-[100dvh] overflow-hidden">
+      <div className="min-h-screen bg-background text-foreground relative flex flex-col h-[100dvh] overflow-hidden lg:pl-16">
         <AnimatedBackground />
         
         <div className="relative z-10 flex flex-col h-full">
@@ -53,7 +54,7 @@ export default function AboutPage() {
                   <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center border border-gold/30">
                     <HelpCircle className="text-gold w-6 h-6" />
                   </div>
-                  <h2 className="text-2xl font-bold tracking-tight">HOW TO PLAY</h2>
+                  <h2 className="text-2xl font-bold tracking-tight uppercase">How to Play</h2>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-3">
@@ -96,6 +97,63 @@ export default function AboutPage() {
                     <CardContent className="text-sm text-muted-foreground">
                       After ~5 seconds, click <strong>"CATCH THE COIN"</strong> to reveal the result. 
                       Winners receive <strong>1.95x</strong> their bet instantly!
+                    </CardContent>
+                  </Card>
+                </div>
+              </section>
+
+              {/* New Features Section */}
+              <section className="space-y-6">
+                <h2 className="text-2xl font-bold flex items-center gap-2 uppercase">
+                  <Zap className="w-6 h-6 text-gold" /> Platform Features
+                </h2>
+                
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Card className="bg-card/50 border-gold/10 hover:border-gold/30 transition-all">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <MessageCircle className="w-5 h-5 text-gold" /> Gasless On-Chain Live Chat
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm text-muted-foreground space-y-2">
+                      <p>Communicate with other players globally in real-time. By utilizing Session Keys and a Meta-Transaction Relayer, chat is completely gasless for users.</p>
+                      <p>Your messages are stored permanently and securely on the Celo blockchain without annoying signature popups for every message.</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-card/50 border-gold/10 hover:border-gold/30 transition-all">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Database className="w-5 h-5 text-gold" /> Pure On-Chain Data Engine
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm text-muted-foreground space-y-2">
+                      <p>Flipen does not rely on centralized databases or indexers. The Game History and Leaderboard are constructed purely from real-time blockchain event logs.</p>
+                      <p>A highly-optimized dual-event merging algorithm ensures 100% data integrity directly from the Celo network.</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-card/50 border-gold/10 hover:border-gold/30 transition-all">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Globe className="w-5 h-5 text-gold" /> Upgradeable Smart Contracts
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm text-muted-foreground space-y-2">
+                      <p>Powered by OpenZeppelin's upgradeable proxy architecture, Flipen's core messenger contracts are built to scale and evolve without ever losing historical data.</p>
+                      <p>All contracts are fully verified on CeloScan and Sourcify for ultimate transparency.</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-card/50 border-gold/10 hover:border-gold/30 transition-all">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Monitor className="w-5 h-5 text-gold" /> Immersive UI & Desktop Optimized
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm text-muted-foreground space-y-2">
+                      <p>A responsive, arcade-style design scales perfectly from mobile screens (MiniPay) to full desktop displays.</p>
+                      <p>Experience an immersive layout with a sleek, collapsible side menu, animated dynamic asset coins, and highly responsive interactions.</p>
                     </CardContent>
                   </Card>
                 </div>
