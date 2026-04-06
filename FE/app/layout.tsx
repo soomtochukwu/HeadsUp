@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning>
+      <body suppressHydrationWarning className="lg:pl-16">
         <Providers>
           <FlipenDataProvider>
             {children}

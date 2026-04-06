@@ -25,24 +25,24 @@ export function Header({
   const router = useRouter()
   const pathname = usePathname()
   const { isConnected } = useAccount()
-  
+
   const tabs = [
     { id: "game", label: "Game", icon: Coins, href: "/" },
     { id: "history", label: "History", icon: TrendingUp, href: "/history" },
     { id: "leaderboard", label: "Leaderboard", icon: Trophy, href: "/leaderboard" },
     { id: "about", label: "About", icon: Info, href: "/about" },
   ]
-  
+
   const getCurrentTab = () => {
     const currentTab = tabs.find(tab => tab.href === pathname)
     return currentTab?.id || "game"
   }
-  
+
   const handleNavigation = (href: string) => {
     router.push(href)
     setIsMobileSidebarOpen(false)
   }
-  
+
   const handleCommunityClick = () => {
     setIsCommentsSidebarOpen(true)
     setIsMobileSidebarOpen(false)
@@ -54,24 +54,82 @@ export function Header({
       if (isMobileSidebarOpen) {
         const sidebar = document.getElementById('mobile-sidebar')
         const hamburger = document.getElementById('hamburger-menu')
-        if (sidebar && !sidebar.contains(event.target as Node) && 
-            hamburger && !hamburger.contains(event.target as Node)) {
+        if (sidebar && !sidebar.contains(event.target as Node) &&
+          hamburger && !hamburger.contains(event.target as Node)) {
           setIsMobileSidebarOpen(false)
         }
       }
     }
-    
+
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isMobileSidebarOpen])
-  
+
   return (
     <>
+      {/* Desktop Sidebar Navigation */}
+      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 z-50 w-16 hover:w-64 flex-col bg-card border-r border-gold/20 transition-all duration-300 group shadow-2xl overflow-hidden">
+        {/* Logo Area */}
+        <div className="h-[73px] flex items-center px-4 border-b border-gold/20 flex-shrink-0 w-full">
+          <Link href="/" className="flex items-center space-x-2 flex-shrink-0">
+            <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center border border-gold flex-shrink-0 overflow-hidden">
+              <img src="/favicon.ico" alt="Flipen Logo" className="w-6 h-6 object-contain" />
+            </div>
+            <div className="flex flex-row items-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
+              <span className="text-xl font-bold text-gold-gradient font-mono">Flipen</span>
+              <span className="opacity-75 text-[10px] text-gray-300 p-0.5 bg-gold-dark/30 rounded-sm">MVP</span>
+            </div>
+          </Link>
+        </div>
+
+        {/* Navigation Links */}
+        <nav className="flex-1 flex flex-col py-6 space-y-4 px-3 w-full">
+          <Button
+            onClick={() => setIsCommentsSidebarOpen(true)}
+            variant="outline"
+            className="border-gold text-gold hover:bg-gold/10 flex items-center justify-start h-10 px-2.5 w-full flex-shrink-0"
+          >
+            <MessageCircle className="w-5 h-5 flex-shrink-0" />
+            <span className="ml-4 text-sm font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">Live Chat</span>
+          </Button>
+
+          {tabs.map((tab) => {
+            const Icon = tab.icon
+            const isActive = getCurrentTab() === tab.id
+            return (
+              <Link key={tab.id} href={tab.href} className="w-full block flex-shrink-0">
+                <button
+                  className={`w-full flex items-center h-10 px-2.5 rounded-lg transition-all text-sm ${isActive
+                      ? "bg-gold/20 text-gold border border-gold shadow-lg shadow-gold/20"
+                      : "text-muted-foreground hover:text-gold hover:bg-muted/50 border border-transparent"
+                    }`}
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  <span className="ml-4 font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">{tab.label}</span>
+                </button>
+              </Link>
+            )
+          })}
+        </nav>
+
+        {/* Bottom Settings (Theme Toggle) */}
+        <div className="p-3 border-t border-gold/20 w-full">
+            <Button
+              variant="outline"
+              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              className="w-full flex items-center justify-start border-gold text-gold hover:bg-gold/10 h-10 px-2.5 flex-shrink-0"
+            >
+              {theme === "light" ? <Moon className="w-5 h-5 flex-shrink-0" /> : <Sun className="w-5 h-5 flex-shrink-0" />}
+              <span className="ml-4 text-sm font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
+            </Button>
+        </div>
+      </aside>
+
       <header className="border-b border-gold bg-card/50 backdrop-blur-sm relative z-40">
         <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            {/* Logo */}
-            <Link href="/" className="flex items-center space-x-2 flex-shrink-0">
+            {/* Mobile Logo (Hidden on Desktop) */}
+            <Link href="/" className="lg:hidden flex items-center space-x-2 flex-shrink-0">
               <div className="w-8 h-8 sm:w-8 sm:h-8 bg-white rounded-full flex items-center justify-center overflow-hidden border border-gold">
                 <img src="/favicon.ico" alt="Flipen Logo" className="w-6 h-6 object-contain" />
               </div>
@@ -80,40 +138,9 @@ export function Header({
                 <span className="opacity-75 text-xs text-gray-300 p-1 bg-gold-dark/30 rounded-sm">MVP</span>
               </div>
             </Link>
-            
-            {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center space-x-8 flex-1 justify-center">
-              <Button
-                onClick={() => setIsCommentsSidebarOpen(true)}
-                variant="outline"
-                size="sm"
-                className="border-gold text-gold hover:bg-gold/10 items-center space-x-2 px-3 py-2"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span className="text-sm">Community</span>
-              </Button>
-              
-              <nav className="flex space-x-4 xl:space-x-6">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon
-                  const isActive = getCurrentTab() === tab.id
-                  return (
-                    <Link key={tab.id} href={tab.href}>
-                      <button
-                        className={`flex items-center space-x-2 px-3 xl:px-4 py-2 rounded-lg transition-all text-sm ${
-                          isActive
-                            ? "bg-gold/20 text-gold border border-gold shadow-lg shadow-gold/20"
-                            : "text-muted-foreground hover:text-gold hover:bg-muted/50"
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        <span>{tab.label}</span>
-                      </button>
-                    </Link>
-                  )
-                })}
-              </nav>
-            </div>
+
+            {/* Desktop Spacer */}
+            <div className="hidden lg:block flex-1" />
 
             {/* Desktop Right Side */}
             <div className="hidden lg:flex items-center space-x-3">
@@ -127,19 +154,9 @@ export function Header({
                 </div>
               )}
 
-              {/* Theme Toggle */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-                className="border-gold text-gold hover:bg-gold/10 p-2 min-w-[40px] h-10"
-              >
-                {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-              </Button>
-
               {/* RainbowKit Connect Button - THE SOURCE OF TRUTH */}
               <div className="flex items-center">
-                <ConnectButton 
+                <ConnectButton
                   showBalance={false}
                   accountStatus={{
                     smallScreen: 'avatar',
@@ -152,7 +169,7 @@ export function Header({
                 />
               </div>
             </div>
-            
+
             {/* Mobile Hamburger Menu */}
             <Button
               id="hamburger-menu"
@@ -166,18 +183,17 @@ export function Header({
           </div>
         </div>
       </header>
-      
+
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
         <div className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
       )}
-      
+
       {/* Mobile Sidebar */}
       <div
         id="mobile-sidebar"
-        className={`lg:hidden fixed top-0 right-0 h-full w-80 max-w-[85vw] bg-card border-l border-gold shadow-2xl transform transition-transform duration-300 ease-in-out z-50 ${
-          isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className={`lg:hidden fixed top-0 right-0 h-full w-80 max-w-[85vw] bg-card border-l border-gold shadow-2xl transform transition-transform duration-300 ease-in-out z-50 ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
       >
         <div className="flex flex-col h-full">
           {/* Sidebar Header */}
@@ -197,7 +213,7 @@ export function Header({
               <X className="w-5 h-5" />
             </Button>
           </div>
-          
+
           {/* Navigation Items */}
           <div className="flex-1 p-4 space-y-2">
             {/* Balance Card Mobile */}
@@ -222,9 +238,9 @@ export function Header({
               className="w-full justify-start border-gold text-gold hover:bg-gold/10 h-12"
             >
               <MessageCircle className="w-5 h-5 mr-3" />
-              <span className="text-base">Community</span>
+              <span className="text-base">Live Chat</span>
             </Button>
-            
+
             {/* Navigation Tabs */}
             <div className="space-y-2 mt-4">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-2">Navigation</h3>
@@ -235,11 +251,10 @@ export function Header({
                   <button
                     key={tab.id}
                     onClick={() => handleNavigation(tab.href)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all text-left ${
-                      isActive
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all text-left ${isActive
                         ? "bg-gold/20 text-gold border border-gold"
                         : "text-muted-foreground hover:text-gold hover:bg-muted/50"
-                    }`}
+                      }`}
                   >
                     <Icon className="w-5 h-5" />
                     <span className="text-base">{tab.label}</span>
@@ -247,7 +262,7 @@ export function Header({
                 )
               })}
             </div>
-            
+
             {/* Theme Toggle */}
             <div className="mt-6">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-2">Settings</h3>

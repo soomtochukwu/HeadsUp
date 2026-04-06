@@ -33,13 +33,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
     }
 
-    const privateKey = process.env.ONLINE_PRIVATE_KEY as `0x${string}`;
+    let privateKey = process.env.ONLINE_PRIVATE_KEY as string;
     if (!privateKey) {
       return NextResponse.json({ error: "Relayer private key not configured" }, { status: 500 });
     }
+    
+    if (!privateKey.startsWith('0x')) {
+      privateKey = `0x${privateKey}`;
+    }
 
     // Initialize the Admin/Deployer Wallet
-    const account = privateKeyToAccount(privateKey);
+    const account = privateKeyToAccount(privateKey as `0x${string}`);
     const chain = CHAINS[chainId];
     if (!chain) {
       return NextResponse.json({ error: "Unsupported chain" }, { status: 400 });
@@ -59,6 +63,8 @@ export async function POST(req: Request) {
       abi: MESSENGER_ABI as any,
       functionName: "postMessageFor",
       args: [userAddress, content, signature],
+      chain,
+      account,
     });
 
     return NextResponse.json({ success: true, hash });

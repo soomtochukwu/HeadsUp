@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { MessageCircle, Send, Clock, X, Loader2, KeyRound } from "lucide-react"
+import { MessageCircle, Send, Clock, X, Loader2, KeyRound, HelpCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useAccount, useReadContract, useWriteContract, usePublicClient } from "wagmi"
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts"
@@ -77,7 +77,7 @@ export function CommentsSidebar({ isOpen, setIsOpen, isWalletConnected, walletAd
     address: messengerAddress,
     abi: MESSENGER_ABI,
     functionName: 'getLatestMessages',
-    args: [35n],
+    args: [BigInt(35)],
     query: { enabled: !!messengerAddress, refetchInterval: 10000 }
   })
 
@@ -199,6 +199,16 @@ export function CommentsSidebar({ isOpen, setIsOpen, isWalletConnected, walletAd
     return `${Math.floor(diff / 1440)}d ago`
   }
 
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-sonner-toast]')) return;
+      toast.dismiss("help-toast");
+    };
+    document.addEventListener("click", handleGlobalClick);
+    return () => document.removeEventListener("click", handleGlobalClick);
+  }, []);
+
   return (
     <>
       {isOpen && (
@@ -214,13 +224,38 @@ export function CommentsSidebar({ isOpen, setIsOpen, isWalletConnected, walletAd
               <MessageCircle className="w-4 h-4 text-gold" />
             </div>
             <div>
-              <h2 className="text-sm font-black text-gold uppercase tracking-widest">Shoutbox</h2>
-              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">On-Chain Global</p>
+              <h2 className="text-sm font-black text-gold uppercase tracking-widest">Flipen Chat</h2>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Decentralized & Gasless</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="hover:bg-gold/10 hover:text-gold rounded-full">
-            <X className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                toast("How it Works", {
+                  id: "help-toast",
+                  description: (
+                    <ul className="list-decimal pl-4 mt-2 space-y-1 text-xs text-muted-foreground font-medium">
+                      <li>You sign a 1-time 'Session Key' to enable chat.</li>
+                      <li>The app uses this key to silently sign your messages.</li>
+                      <li>A backend Relayer pays the gas fee for you.</li>
+                      <li>Your messages are stored permanently on the Celo blockchain!</li>
+                    </ul>
+                  ),
+                  closeButton: true,
+                  duration: 10000,
+                })
+              }}
+              className="hover:bg-gold/10 hover:text-gold rounded-full mr-1"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="hover:bg-gold/10 hover:text-gold rounded-full">
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Chat Feed */}
