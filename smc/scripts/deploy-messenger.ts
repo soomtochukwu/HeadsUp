@@ -1,5 +1,4 @@
 import { ethers, upgrades, network } from "hardhat";
-import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import fs from "fs";
 import path from "path";
 
@@ -19,26 +18,21 @@ async function getImplementationAddressWithRetry(
   return "IMPLEMENTATION_ADDRESS_NOT_AVAILABLE";
 }
 
-async function main(): Promise<void> {
-  const [deployer]: HardhatEthersSigner[] = await ethers.getSigners();
-  console.log("Deploying contracts with the account:", deployer.address);
+async function main() {
+  console.log(`Deploying Upgradeable FlipenMessenger to ${network.name}...`);
 
-  const Flipen = await ethers.getContractFactory("Flipen");
+  const Messenger = await ethers.getContractFactory("FlipenMessenger");
+  const messenger = await upgrades.deployProxy(Messenger, [], { initializer: "initialize" });
 
-  console.log("Deploying Flipen proxy...");
-  const flipen = await upgrades.deployProxy(
-    Flipen,
-    [deployer.address],
-    { initializer: "initialize" }
-  );
+  await messenger.waitForDeployment();
 
-  await flipen.waitForDeployment();
-  const proxyAddress = await flipen.getAddress();
-  console.log("Flipen Proxy Contract Deployed at:", proxyAddress);
+  const proxyAddress = await messenger.getAddress();
+  console.log(`FlipenMessenger Proxy deployed to: ${proxyAddress}`);
 
   const implementationAddress = await getImplementationAddressWithRetry(proxyAddress);
+  console.log(`FlipenMessenger Implementation deployed to: ${implementationAddress}`);
 
-  // SYNC TO FRONTEND
+  // PREPARE FE ADDRESSES FILE
   const frontendContractsDir = path.join(__dirname, "../../FE/contracts");
   const frontendTsPath = path.join(frontendContractsDir, "addresses.ts");
   
@@ -49,13 +43,11 @@ async function main(): Promise<void> {
     if (match) try { currentAddresses = eval(`(${match[1]})`); } catch (e) {}
   }
 
-  currentAddresses[network.name] = {
-    ...currentAddresses[network.name],
-    proxyAddress: proxyAddress,
-    implementationAddress: implementationAddress,
-    deployedAt: new Date().toISOString(),
-    deployer: deployer.address,
-  };
+  if (!currentAddresses[network.name]) currentAddresses[network.name] = {};
+  
+  // Update frontend variables
+  currentAddresses[network.name].messengerAddress = proxyAddress;
+  currentAddresses[network.name].messengerImplementationAddress = implementationAddress;
 
   const tsContent = `// Auto-generated file - Do not edit manually
 // Generated on: ${new Date().toISOString()}
@@ -78,10 +70,10 @@ export const MESSENGER_ADDRESSES: Record<number, \`0x\${string}\`> = {
 `;
 
   fs.writeFileSync(frontendTsPath, tsContent);
-  const abiFilePath = path.join(frontendContractsDir, `${network.name}-abi.json`);
-  fs.writeFileSync(abiFilePath, Flipen.interface.formatJson());
+  const abi = Messenger.interface.formatJson();
+  fs.writeFileSync(path.join(frontendContractsDir, "messenger-abi.json"), abi);
 
-  console.log("✅ Deployment complete!");
+  console.log("✅ Upgradeable Messenger Deployment complete!");
 }
 
 main().catch((error) => {

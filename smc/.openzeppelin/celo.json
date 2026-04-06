@@ -10,6 +10,11 @@
       "address": "0xD6c9912EB6fd064A6B8Bd5786C3cf787806EEdAb",
       "txHash": "0x9fbc5c968180cb87289cf46129972894cb0035cb028499d42c77b2cd196e3ae4",
       "kind": "transparent"
+    },
+    {
+      "address": "0x9a82055d6C4Ad4C33734A22DbCD43FD8aE4bE097",
+      "txHash": "0x9b309518266f0b2c986181cf68857d7e91e763ff133a5dced26b71b2cb9221ce",
+      "kind": "transparent"
     }
   ],
   "impls": {
@@ -301,6 +306,135 @@
               "label": "_initializing",
               "type": "t_bool",
               "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    },
+    "0e65fda2434f6248657a397a9020daba270480682eca70d0aa4047eba7dec781": {
+      "address": "0x664431647b4Bff1bB0626bF77961ca17e233e28A",
+      "txHash": "0x5398b1a83da7ddad773308ecbb8eef6eff3c0fc4a5bad087b5e0fe85c52e3a00",
+      "layout": {
+        "solcVersion": "0.8.28",
+        "storage": [
+          {
+            "label": "messages",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_array(t_struct(Message)1809_storage)dyn_storage",
+            "contract": "FlipenMessenger",
+            "src": "contracts/FlipenMessenger.sol:18"
+          },
+          {
+            "label": "authorizedSessionKeys",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_mapping(t_address,t_address)",
+            "contract": "FlipenMessenger",
+            "src": "contracts/FlipenMessenger.sol:21"
+          },
+          {
+            "label": "nonces",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "FlipenMessenger",
+            "src": "contracts/FlipenMessenger.sol:24"
+          }
+        ],
+        "types": {
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)214_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_struct(Message)1809_storage)dyn_storage": {
+            "label": "struct FlipenMessenger.Message[]",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_address)": {
+            "label": "mapping(address => address)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Message)1809_storage": {
+            "label": "struct FlipenMessenger.Message",
+            "members": [
+              {
+                "label": "sender",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "content",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "timestamp",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              }
+            ],
+            "numberOfBytes": "96"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:73",
               "offset": 8,
               "slot": "0"
             }

@@ -2,15 +2,14 @@
 pragma solidity ^0.8.28;
 
 import "./FlipenStorage.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 abstract contract GameLogic is
     FlipenStorage,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuard
 {
     function __GameLogic_init() internal onlyInitializing {
-        __ReentrancyGuard_init();
     }
 
     /**
