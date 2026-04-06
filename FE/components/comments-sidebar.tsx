@@ -1,19 +1,21 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { MessageCircle, Send, ThumbsUp, Reply, Clock, X } from "lucide-react"
+import { MessageCircle, Send, Clock, X, Loader2, KeyRound } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { useAccount, useReadContract, useWriteContract, usePublicClient } from "wagmi"
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts"
+import { encodePacked, keccak256 } from "viem"
+import { toast } from "sonner"
+import { MESSENGER_ADDRESSES } from "@/contracts/addresses"
+import MESSENGER_ABI from "@/contracts/messenger-abi.json"
 
 interface Comment {
-  id: number
   address: string
   message: string
-  timestamp: string
-  likes: number
-  replies: any[]
-  isLiked: boolean
+  timestamp: number
 }
 
 interface CommentsSidebarProps {
@@ -24,345 +26,273 @@ interface CommentsSidebarProps {
 }
 
 export function CommentsSidebar({ isOpen, setIsOpen, isWalletConnected, walletAddress }: CommentsSidebarProps) {
-  const [comments, setComments] = useState<Comment[]>([
-    {
-      id: 1,
-      address: "0x1234...5678",
-      message: "Just won 5 ETH! This platform is absolutely amazing. The fairness is real and payouts are instant! 🚀",
-      timestamp: "2024-01-15 14:30:25",
-      likes: 12,
-      replies: [
-        {
-          id: 1,
-          address: "0x8765...4321",
-          message: "Congrats! What was your strategy?",
-          timestamp: "2024-01-15 14:32:10",
-          likes: 3,
-          isLiked: false,
-        },
-      ],
-      isLiked: false,
-    },
-    {
-      id: 2,
-      address: "0x9876...1234",
-      message: "Love the new black and gold theme! Much more elegant and professional looking.",
-      timestamp: "2024-01-15 14:25:45",
-      likes: 8,
-      replies: [],
-      isLiked: true,
-    },
-    {
-      id: 3,
-      address: "0x4567...8901",
-      message: "Multi-chain support is fantastic. Switched from Ethereum to Polygon for lower fees. Works perfectly!",
-      timestamp: "2024-01-15 14:20:33",
-      likes: 15,
-      replies: [
-        {
-          id: 2,
-          address: "0x2345...6789",
-          message: "Same here! Polygon fees are so much better for smaller bets.",
-          timestamp: "2024-01-15 14:22:18",
-          likes: 5,
-          isLiked: true,
-        },
-        {
-          id: 3,
-          address: "0x6789...0123",
-          message: "Try Arbitrum too, even faster!",
-          timestamp: "2024-01-15 14:24:05",
-          likes: 2,
-          isLiked: false,
-        },
-      ],
-      isLiked: false,
-    },
-    {
-      id: 4,
-      address: "0x3456...7890",
-      message: "The theme switcher is a great addition! Love being able to switch between dark and light modes. 🌓",
-      timestamp: "2024-01-15 14:15:22",
-      likes: 20,
-      replies: [],
-      isLiked: false,
-    },
-    {
-      id: 5,
-      address: "0x7890...2345",
-      message: "Question: Are there any plans to add more tokens? Would love to see LINK and AAVE support.",
-      timestamp: "2024-01-15 14:10:55",
-      likes: 6,
-      replies: [
-        {
-          id: 4,
-          address: "0x5678...9012",
-          message: "Great suggestion! More DeFi tokens would be awesome.",
-          timestamp: "2024-01-15 14:12:30",
-          likes: 4,
-          isLiked: false,
-        },
-      ],
-      isLiked: false,
-    },
-  ])
-
+  const { chainId } = useAccount()
+  const publicClient = usePublicClient()
+  const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState("")
-  const [replyingTo, setReplyingTo] = useState<number | null>(null)
-  const [replyText, setReplyText] = useState("")
+  const [isSending, setIsSending] = useState(false)
+  const [isAuthorizing, setIsAuthorizing] = useState(false)
+  const [sessionAccount, setSessionAccount] = useState<any>(null)
 
-  const addComment = () => {
-    if (!newComment.trim() || !isWalletConnected) return
+  const activeChainId = chainId || 42220 
+  const messengerAddress = MESSENGER_ADDRESSES[activeChainId as keyof typeof MESSENGER_ADDRESSES]
 
-    const comment: Comment = {
-      id: Date.now(),
-      address: walletAddress,
-      message: newComment,
-      timestamp: new Date().toLocaleString(),
-      likes: 0,
-      replies: [],
-      isLiked: false,
+  // Initialize Session Key (in volatile memory)
+  useEffect(() => {
+    let pKey = sessionStorage.getItem("flipen_session_key") as `0x${string}`
+    if (!pKey) {
+      pKey = generatePrivateKey()
+      sessionStorage.setItem("flipen_session_key", pKey)
     }
+    setSessionAccount(privateKeyToAccount(pKey))
+  }, [])
 
-    setComments([comment, ...comments])
-    setNewComment("")
-  }
+  // Check Authorization
+  const { data: authorizedKey, refetch: refetchAuthorizedKey } = useReadContract({
+    address: messengerAddress,
+    abi: MESSENGER_ABI,
+    functionName: 'authorizedSessionKeys',
+    args: walletAddress ? [walletAddress] : undefined,
+    query: { enabled: !!walletAddress && !!messengerAddress }
+  })
 
-  const addReply = (commentId: number) => {
-    if (!replyText.trim() || !isWalletConnected) return
+  // Fetch Nonce
+  const { data: userNonce, refetch: refetchNonce } = useReadContract({
+    address: messengerAddress,
+    abi: MESSENGER_ABI,
+    functionName: 'nonces',
+    args: walletAddress ? [walletAddress] : undefined,
+    query: { enabled: !!walletAddress && !!messengerAddress }
+  })
 
-    const reply = {
-      id: Date.now(),
-      address: walletAddress,
-      message: replyText,
-      timestamp: new Date().toLocaleString(),
-      likes: 0,
-      isLiked: false,
+  const isAuthorized = useMemo(() => {
+    return authorizedKey && sessionAccount && 
+           (authorizedKey as string).toLowerCase() === sessionAccount.address.toLowerCase()
+  }, [authorizedKey, sessionAccount])
+
+  const { writeContractAsync } = useWriteContract()
+
+  // Bootstrap Load Messages
+  const { data: initialMessages } = useReadContract({
+    address: messengerAddress,
+    abi: MESSENGER_ABI,
+    functionName: 'getLatestMessages',
+    args: [35n],
+    query: { enabled: !!messengerAddress, refetchInterval: 10000 }
+  })
+
+  useEffect(() => {
+    if (initialMessages && Array.isArray(initialMessages)) {
+      const formatted = initialMessages.map((m: any) => ({
+        address: m.sender,
+        message: m.content,
+        timestamp: Number(m.timestamp)
+      })).reverse() // Show newest at bottom
+      setComments(formatted)
     }
+  }, [initialMessages])
 
-    setComments(
-      comments.map((comment) =>
-        comment.id === commentId ? { ...comment, replies: [...comment.replies, reply] } : comment,
-      ),
-    )
-
-    setReplyText("")
-    setReplyingTo(null)
-  }
-
-  const toggleLike = (commentId: number, replyId?: number) => {
-    setComments(
-      comments.map((comment) => {
-        if (comment.id === commentId) {
-          if (replyId) {
-            return {
-              ...comment,
-              replies: comment.replies.map((reply) =>
-                reply.id === replyId
-                  ? { ...reply, likes: reply.isLiked ? reply.likes - 1 : reply.likes + 1, isLiked: !reply.isLiked }
-                  : reply,
-              ),
+  // Watch for Live Messages
+  useEffect(() => {
+    if (!publicClient || !messengerAddress) return
+    const unwatch = publicClient.watchContractEvent({
+      address: messengerAddress,
+      abi: MESSENGER_ABI,
+      eventName: 'NewMessage',
+      onLogs: logs => {
+        logs.forEach((log: any) => {
+          const { sender, content, timestamp } = log.args
+          setComments(prev => {
+            const newComment = { address: sender, message: content, timestamp: Number(timestamp) }
+            // Prevent duplicates if local echo beat the block
+            if (prev.some(c => c.address === newComment.address && c.message === newComment.message && Math.abs(c.timestamp - newComment.timestamp) < 10)) {
+              return prev
             }
-          } else {
-            return {
-              ...comment,
-              likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1,
-              isLiked: !comment.isLiked,
-            }
-          }
-        }
-        return comment
-      }),
-    )
+            return [...prev, newComment].slice(-40) // Keep last 40
+          })
+        })
+      }
+    })
+    return () => unwatch()
+  }, [publicClient, messengerAddress])
+
+  const authorizeChat = async () => {
+    if (!sessionAccount || !messengerAddress) return
+    setIsAuthorizing(true)
+    try {
+      toast.info("Authorizing your session key (Zero gas after this!)...", { closeButton: true })
+      const hash = await writeContractAsync({
+        address: messengerAddress,
+        abi: MESSENGER_ABI,
+        functionName: "authorizeSessionKey",
+        args: [sessionAccount.address]
+      })
+      await publicClient?.waitForTransactionReceipt({ hash })
+      toast.success("Chat enabled! You can now send messages instantly.", { closeButton: true })
+      refetchAuthorizedKey()
+    } catch (e: any) {
+      toast.error(e.shortMessage || "Authorization failed", { closeButton: true })
+    } finally {
+      setIsAuthorizing(false)
+    }
   }
 
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`
+  const sendMessage = async () => {
+    if (!newComment.trim() || !isWalletConnected || !sessionAccount || userNonce === undefined) return
+    setIsSending(true)
+
+    try {
+      const messageContent = newComment.trim()
+      const currentNonce = userNonce as bigint
+
+      // 1. Local Echo for instant UX
+      const tempComment: Comment = {
+        address: walletAddress,
+        message: messageContent,
+        timestamp: Math.floor(Date.now() / 1000)
+      }
+      setComments(prev => [...prev, tempComment].slice(-40))
+      setNewComment("")
+
+      // 2. Sign with Session Key (Silent, no popup)
+      const messageHash = keccak256(
+        encodePacked(
+          ['address', 'string', 'uint256'],
+          [walletAddress as `0x${string}`, messageContent, currentNonce]
+        )
+      )
+      
+      const signature = await sessionAccount.signMessage({
+        message: { raw: messageHash }
+      })
+
+      // 3. Send to Gasless Relayer
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userAddress: walletAddress,
+          content: messageContent,
+          signature,
+          chainId: activeChainId
+        })
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Relay failed")
+      
+      refetchNonce() // Update nonce for next message
+    } catch (error: any) {
+      toast.error("Message failed: " + error.message, { closeButton: true })
+    } finally {
+      setIsSending(false)
+    }
   }
 
-  const getTimeAgo = (timestamp: string) => {
-    const now = new Date()
-    const time = new Date(timestamp)
-    const diffInMinutes = Math.floor((now.getTime() - time.getTime()) / (1000 * 60))
+  const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`
 
-    if (diffInMinutes < 1) return "Just now"
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
-    return `${Math.floor(diffInMinutes / 1440)}d ago`
+  const getTimeAgo = (timestamp: number) => {
+    const diff = Math.floor((Date.now() - (timestamp * 1000)) / (1000 * 60))
+    if (diff < 1) return "Just now"
+    if (diff < 60) return `${diff}m ago`
+    if (diff < 1440) return `${Math.floor(diff / 60)}h ago`
+    return `${Math.floor(diff / 1440)}d ago`
   }
 
   return (
     <>
-      {/* Overlay */}
       {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-          onClick={() => setIsOpen(false)}
-        />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity" onClick={() => setIsOpen(false)} />
       )}
 
-      {/* Sidebar - Responsive width */}
-      <div
-        className={`fixed left-0 top-0 h-full w-full sm:w-96 md:w-80 bg-card/95 backdrop-blur-sm border-r border-gold z-50 transform transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
+      <div className={`fixed left-0 top-0 h-full w-full sm:w-96 md:w-80 bg-card/95 backdrop-blur-xl border-r border-gold/30 z-50 transform transition-transform duration-500 ease-in-out shadow-[10px_0_50px_rgba(0,0,0,0.5)] flex flex-col ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        
         {/* Header */}
-        <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gold">
+        <div className="flex items-center justify-between p-4 border-b border-gold/20 bg-gold/5 shrink-0">
           <div className="flex items-center space-x-2">
-            <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-gold" />
-            <h2 className="text-base sm:text-lg font-semibold text-gold">Community Chat</h2>
-            <Badge variant="outline" className="border-green-500/30 text-green-500 text-xs">
-              {comments.length}
-            </Badge>
+            <div className="w-8 h-8 rounded-lg bg-gold/20 flex items-center justify-center border border-gold/30">
+              <MessageCircle className="w-4 h-4 text-gold" />
+            </div>
+            <div>
+              <h2 className="text-sm font-black text-gold uppercase tracking-widest">Shoutbox</h2>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">On-Chain Global</p>
+            </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsOpen(false)}
-            className="text-muted-foreground hover:text-foreground p-1"
-          >
+          <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="hover:bg-gold/10 hover:text-gold rounded-full">
             <X className="w-4 h-4" />
           </Button>
         </div>
 
-        {/* Content */}
-        <div className="flex flex-col h-full">
-          {/* Add Comment */}
-          <div className="p-3 sm:p-4 border-b border-gold/10">
-            <div className="space-y-2 sm:space-y-3">
-              <Textarea
-                placeholder={isWalletConnected ? "Share your thoughts..." : "Connect your wallet to comment"}
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                disabled={!isWalletConnected}
-                className="bg-muted/50 border-gold text-foreground placeholder-muted-foreground resize-none text-sm"
-                rows={2}
-              />
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">
-                  {isWalletConnected ? `As ${formatAddress(walletAddress)}` : "Connect wallet"}
-                </span>
-                <Button
-                  onClick={addComment}
-                  disabled={!newComment.trim() || !isWalletConnected}
-                  size="sm"
-                  className="bg-gold-gradient hover:opacity-90 text-white font-semibold text-xs"
-                >
-                  <Send className="w-3 h-3 mr-1" />
-                  Post
-                </Button>
-              </div>
+        {/* Chat Feed */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gold/20 flex flex-col">
+          {comments.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40 grayscale space-y-2">
+              <MessageCircle className="w-12 h-12" />
+              <p className="text-xs font-bold uppercase tracking-widest">No messages yet</p>
             </div>
-          </div>
-
-          {/* Comments List */}
-          <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
-            {comments.map((comment) => (
-              <div key={comment.id} className="bg-muted/30 rounded-lg p-2 sm:p-3 space-y-2 sm:space-y-3 border border-gold/10">
-                {/* Comment Header */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gold-gradient rounded-full flex items-center justify-center text-white font-bold text-xs">
-                      {comment.address.slice(2, 4).toUpperCase()}
-                    </div>
-                    <div>
-                      <span className="font-mono text-gold text-xs">{formatAddress(comment.address)}</span>
-                      <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                        <Clock className="w-2 h-2" />
-                        <span>{getTimeAgo(comment.timestamp)}</span>
-                      </div>
-                    </div>
-                  </div>
+          ) : (
+            comments.map((comment, i) => (
+              <div key={i} className="space-y-1.5 group">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-black font-mono text-gold/80 tracking-tighter">
+                    {formatAddress(comment.address)}
+                  </span>
+                  <span className="text-[8px] text-muted-foreground font-bold uppercase opacity-0 group-hover:opacity-100 transition-opacity">
+                    {getTimeAgo(comment.timestamp)}
+                  </span>
                 </div>
-
-                {/* Comment Content */}
-                <p className="text-foreground text-sm leading-relaxed break-words">{comment.message}</p>
-
-                {/* Comment Actions */}
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => toggleLike(comment.id)}
-                    className={`flex items-center space-x-1 text-xs transition-colors ${
-                      comment.isLiked ? "text-green-500" : "text-muted-foreground hover:text-green-500"
-                    }`}
-                  >
-                    <ThumbsUp className="w-3 h-3" />
-                    <span>{comment.likes}</span>
-                  </button>
-                  <button
-                    onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
-                    className="flex items-center space-x-1 text-xs text-muted-foreground hover:text-gold transition-colors"
-                  >
-                    <Reply className="w-3 h-3" />
-                    <span>Reply</span>
-                  </button>
+                <div className="bg-muted/40 rounded-2xl rounded-tl-none p-3 border border-gold/5 hover:border-gold/20 transition-all shadow-sm">
+                  <p className="text-sm leading-relaxed break-words text-foreground/90 font-medium">
+                    {comment.message}
+                  </p>
                 </div>
-
-                {/* Reply Input */}
-                {replyingTo === comment.id && isWalletConnected && (
-                  <div className="mt-2 space-y-2">
-                    <Textarea
-                      placeholder="Write a reply..."
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      className="bg-muted/50 border-gold text-foreground text-xs"
-                      rows={2}
-                    />
-                    <div className="flex justify-end space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setReplyingTo(null)
-                          setReplyText("")
-                        }}
-                        className="text-muted-foreground hover:text-foreground text-xs h-6"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={() => addReply(comment.id)}
-                        disabled={!replyText.trim()}
-                        size="sm"
-                        className="bg-gold-gradient hover:opacity-90 text-white text-xs h-6"
-                      >
-                        Reply
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Replies */}
-                {comment.replies.length > 0 && (
-                  <div className="ml-2 sm:ml-4 space-y-2 border-l-2 border-gold/20 pl-2 sm:pl-3">
-                    {comment.replies.map((reply) => (
-                      <div key={reply.id} className="bg-muted/30 rounded-lg p-2">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-4 h-4 bg-gold-gradient rounded-full flex items-center justify-center text-white font-bold text-xs">
-                              {reply.address.slice(2, 4).toUpperCase()}
-                            </div>
-                            <span className="font-mono text-gold text-xs">{formatAddress(reply.address)}</span>
-                            <span className="text-xs text-muted-foreground">{getTimeAgo(reply.timestamp)}</span>
-                          </div>
-                        </div>
-                        <p className="text-foreground text-xs mb-1 break-words">{reply.message}</p>
-                        <button
-                          onClick={() => toggleLike(comment.id, reply.id)}
-                          className={`flex items-center space-x-1 text-xs transition-colors ${
-                            reply.isLiked ? "text-green-500" : "text-muted-foreground hover:text-green-500"
-                          }`}
-                        >
-                          <ThumbsUp className="w-2 h-2" />
-                          <span>{reply.likes}</span>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-            ))}
+            ))
+          )}
+        </div>
+
+        {/* Input Area */}
+        <div className="shrink-0 p-4 border-t border-gold/20 bg-background/80 backdrop-blur-md">
+          <div className="space-y-3">
+            <Textarea
+              placeholder={isWalletConnected ? (isAuthorized ? "Shout something..." : "Enable chat to speak") : "Connect wallet to shout"}
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              disabled={!isWalletConnected || isSending || !isAuthorized}
+              className="bg-muted/50 border-gold/20 focus:border-gold/50 text-foreground placeholder:text-muted-foreground/50 resize-none text-sm rounded-xl h-20"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && isAuthorized) {
+                  e.preventDefault()
+                  sendMessage()
+                }
+              }}
+            />
+            
+            {!isWalletConnected ? (
+              <Button disabled className="w-full bg-muted text-muted-foreground h-10">CONNECT WALLET</Button>
+            ) : !isAuthorized ? (
+              <Button 
+                onClick={authorizeChat} 
+                disabled={isAuthorizing}
+                className="w-full bg-gold hover:bg-gold-dark text-black font-black text-xs uppercase tracking-widest h-10"
+              >
+                {isAuthorizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><KeyRound className="w-3 h-3 mr-2" /> ENABLE CHAT (1-TIME)</>}
+              </Button>
+            ) : (
+              <Button
+                onClick={sendMessage}
+                disabled={!newComment.trim() || isSending}
+                className="w-full bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-black font-black text-xs uppercase tracking-widest shadow-lg shadow-gold/10 h-10"
+              >
+                {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-3 h-3 mr-2" /> Broadcast</>}
+              </Button>
+            )}
+            
+            {isWalletConnected && isAuthorized && (
+              <p className="text-[9px] text-center text-gold/60 font-bold uppercase tracking-tighter">
+                Gasless transmission • Secured by Session Key
+              </p>
+            )}
           </div>
         </div>
       </div>

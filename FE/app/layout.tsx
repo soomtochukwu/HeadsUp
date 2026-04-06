@@ -3,6 +3,7 @@ import './globals.css'
 import { Providers } from './providers'
 import { Toaster } from "@/components/ui/sonner"
 import { CommunityBanner } from "@/components/community-banner"
+import { FlipenDataProvider } from "@/components/data-provider"
 
 export const metadata: Metadata = {
   title: 'Flipen',
@@ -21,8 +22,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
         <Providers>
-          {children}
-          <CommunityBanner />
+          <FlipenDataProvider>
+            {children}
+            <CommunityBanner />
+          </FlipenDataProvider>
         </Providers>
         <Toaster richColors closeButton position="top-center" />
       </body>

@@ -55,6 +55,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <WagmiProvider config={config}>
         <RainbowKitProvider
+          initialChain={celoMainnet}
           theme={darkTheme({
             accentColor: "#DAA520",
             accentColorForeground: "white",
