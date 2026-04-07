@@ -90,7 +90,7 @@ export function FlipenDataProvider({ children }: { children: React.ReactNode }) 
         const [reqLogs, resLogs] = await Promise.all([
           publicClient.getLogs({
             address: proxyAddress,
-            event: { type: 'event', name: 'GameRequested', inputs: [{type:'uint256', name:'requestId', indexed:true},{type:'address', name:'player', indexed:true},{type:'uint256', name:'amount', indexed:false},{type:'uint8', name:'playerChoice', indexed:false},{type:'uint256', name:'commitBlock', indexed:false},{type:'address', name:'token', indexed:false}] },
+            event: { type: 'event', name: 'GameRequested', inputs: [{type:'uint256', name:'requestId', indexed:true},{type:'address', name:'player', indexed:true},{type:'uint256', name:'amount', indexed:false},{type:'uint8', name:'playerChoice', indexed:false},{type:'uint256', name:'commitBlock', indexed:false},{type:'address', name:'token', indexed:false},{type:'address', name:'referrer', indexed:false}] },
             fromBlock, toBlock
           }),
           publicClient.getLogs({

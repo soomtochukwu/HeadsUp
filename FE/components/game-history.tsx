@@ -27,7 +27,7 @@ export function GameHistory() {
           <RefreshCcw className="w-4 h-4 text-gold" />
         </Button>
       </CardHeader>
-      
+
       <CardContent className="p-0">
         <div className="min-h-[400px] overflow-x-auto">
           {isSyncing && activities.length === 0 ? (
@@ -85,10 +85,15 @@ export function GameHistory() {
                             <ShieldAlert className="w-3 h-3" />
                             <span className="text-[9px] font-black uppercase">Reverted</span>
                           </div>
+                        ) : act.status === 'PENDING' ? (
+                          <div className="flex items-center gap-1 text-gold/60">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <span className="text-[9px] font-black uppercase tracking-tighter">Flipping...</span>
+                          </div>
                         ) : (
                           <div className="flex items-center gap-1 text-green-400">
                             <CheckCircle2 className="w-3 h-3" />
-                            <span className="text-[9px] font-black uppercase">Success</span>
+                            <span className="text-[9px] font-black uppercase">Completed</span>
                           </div>
                         )}
                       </div>
@@ -96,15 +101,17 @@ export function GameHistory() {
                     <TableCell className="text-right pr-6">
                       <div className="flex flex-col items-end">
                         {act.status === 'FAILED' ? (
-                          <span className="text-[10px] text-red-400 font-bold uppercase">Gas Wasted</span>
+                          <span className="text-[10px] text-red-400 font-bold uppercase tracking-tighter">Gas Wasted</span>
+                        ) : act.status === 'PENDING' ? (
+                          <span className="text-[10px] text-muted-foreground font-bold uppercase animate-pulse tracking-tighter">Waiting...</span>
                         ) : act.won ? (
-                          <span className="text-xs font-black text-green-400">+{parseFloat(formatUnits(BigInt(act.payout), 18)).toFixed(2)}</span>
+                          <span className="text-xs font-black text-green-400 tracking-tighter">+{parseFloat(formatUnits(BigInt(act.payout), 18)).toFixed(2)}</span>
                         ) : (
-                          <span className="text-xs font-black text-muted-foreground opacity-50">0.00</span>
+                          <span className="text-[10px] font-black text-red-400/60 uppercase tracking-tighter">Defeat</span>
                         )}
-                        <a 
-                          href={`https://celoscan.io/tx/${act.txHash}`} 
-                          target="_blank" 
+                        <a
+                          href={`https://celoscan.io/tx/${act.txHash}`}
+                          target="_blank"
                           rel="noreferrer"
                           className="text-[8px] text-muted-foreground hover:text-gold flex items-center gap-0.5"
                         >
