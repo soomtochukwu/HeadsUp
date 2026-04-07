@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Coins, TrendingUp, Trophy, Info, MessageCircle, Sun, Moon, Menu, X } from "lucide-react"
+import { Coins, TrendingUp, Trophy, Info, MessageCircle, Sun, Moon, Menu, X, Users } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import { useAccount } from 'wagmi'
@@ -30,6 +30,7 @@ export function Header({
     { id: "game", label: "Game", icon: Coins, href: "/" },
     { id: "history", label: "History", icon: TrendingUp, href: "/history" },
     { id: "leaderboard", label: "Leaderboard", icon: Trophy, href: "/leaderboard" },
+    { id: "referrals", label: "Referrals", icon: Users, href: "/referrals" },
     { id: "about", label: "About", icon: Info, href: "/about" },
   ]
 
