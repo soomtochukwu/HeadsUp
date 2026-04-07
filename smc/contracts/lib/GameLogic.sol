@@ -102,6 +102,7 @@ abstract contract GameLogic is
         // Referral Binding Logic
         if (referrer != address(0) && referrer != msg.sender && referrers[msg.sender] == address(0)) {
             referrers[msg.sender] = referrer;
+            refereeCount[referrer]++;
             emit ReferralBound(msg.sender, referrer);
         }
 

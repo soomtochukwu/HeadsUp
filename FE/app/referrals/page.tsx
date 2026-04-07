@@ -39,10 +39,19 @@ export default function ReferralsPage() {
     query: { enabled: !!address && !!proxyAddress }
   });
 
+  const { data: totalRefereesRaw } = useReadContract({
+    address: proxyAddress,
+    abi: contractABI as any,
+    functionName: "refereeCount",
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && !!proxyAddress }
+  });
+
   const { writeContractAsync } = useWriteContract();
 
   const celoEarnings = celoEarningsRaw ? Number(formatUnits(celoEarningsRaw as bigint, 18)) : 0;
   const cusdEarnings = cusdEarningsRaw ? Number(formatUnits(cusdEarningsRaw as bigint, 18)) : 0;
+  const totalReferees = totalRefereesRaw ? Number(totalRefereesRaw as bigint) : 0;
   const totalEarnings = celoEarnings + cusdEarnings;
 
   const referralLink = mounted && address 
@@ -138,7 +147,7 @@ export default function ReferralsPage() {
             </CardTitle>
             <CardDescription>Available rewards from your active network.</CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col justify-center">
+          <CardContent className="flex-1 flex flex-col justify-center space-y-4">
             <div className="grid grid-cols-2 gap-4 text-center">
               <div className="p-4 bg-muted/20 rounded-lg border border-white/5">
                 <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">CELO</div>
@@ -148,6 +157,10 @@ export default function ReferralsPage() {
                 <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">cUSD</div>
                 <div className="text-3xl font-black text-green-400">{cusdEarnings.toFixed(2)}</div>
               </div>
+            </div>
+            <div className="p-3 bg-gold/5 border border-gold/10 rounded-lg text-center">
+              <div className="text-[10px] font-bold text-gold/60 uppercase tracking-[0.2em] mb-1">Total Friends Invited</div>
+              <div className="text-2xl font-black text-gold">{totalReferees}</div>
             </div>
           </CardContent>
           <CardFooter>

@@ -93,6 +93,8 @@ abstract contract FlipenStorage is Initializable {
 
     uint256 public currentHouseEdgeBP;
     uint256 public currentReferralRewardBP;
+
+    mapping(address => uint256) public refereeCount;
     // ---------------------------------
 
     function __FlipenStorage_init() internal onlyInitializing {
