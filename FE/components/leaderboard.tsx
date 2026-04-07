@@ -23,7 +23,7 @@ export function Leaderboard() {
 
       const player = act.player
       const current = playerMap.get(player) || { address: player, volume: BigInt(0), wins: 0, games: 0 }
-      
+
       playerMap.set(player, {
         address: player,
         volume: current.volume + BigInt(act.amount),
@@ -48,8 +48,8 @@ export function Leaderboard() {
             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Every Participant Ranked</p>
           </div>
         </div>
-        <button 
-          onClick={() => refresh()} 
+        <button
+          onClick={() => refresh()}
           disabled={isSyncing}
           className={`p-2 rounded-lg hover:bg-gold/10 transition-colors ${isSyncing ? 'animate-spin' : ''}`}
         >
@@ -83,13 +83,12 @@ export function Leaderboard() {
                 {leaders.map((leader, i) => {
                   const isMVP = i === 0;
                   const isCurrentUser = leader.address.toLowerCase() === userAddress?.toLowerCase();
-                  
+
                   return (
-                    <TableRow 
-                      key={leader.address} 
-                      className={`border-gold/5 transition-all group ${
-                        isMVP ? 'bg-gold/10 hover:bg-gold/15' : 'hover:bg-gold/5'
-                      } ${isCurrentUser ? 'border-l-2 border-l-gold' : ''}`}
+                    <TableRow
+                      key={leader.address}
+                      className={`border-gold/5 transition-all group ${isMVP ? 'bg-gold/10 hover:bg-gold/15' : 'hover:bg-gold/5'
+                        } ${isCurrentUser ? 'border-l-2 border-l-gold' : ''}`}
                     >
                       <TableCell className="text-center">
                         <div className="flex justify-center items-center gap-1">
@@ -142,3 +141,4 @@ export function Leaderboard() {
     </Card>
   )
 }
+// 
