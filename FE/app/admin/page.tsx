@@ -24,7 +24,10 @@ const ADMIN_ABI = [
   { "type": "function", "name": "withdrawToken", "stateMutability": "nonpayable", "inputs": [{ "type": "address", "name": "token" }, { "type": "uint256", "name": "amount" }], "outputs": [] },
   { "type": "function", "name": "updateBetLimits", "stateMutability": "nonpayable", "inputs": [{ "type": "uint256", "name": "newMinBet" }, { "type": "uint256", "name": "newMaxBet" }], "outputs": [] },
   { "type": "function", "name": "fundContract", "stateMutability": "payable", "inputs": [], "outputs": [] },
-  { "type": "function", "name": "cUSD", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "address" }] }
+  { "type": "function", "name": "cUSD", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "address" }] },
+  { "type": "function", "name": "currentHouseEdgeBP", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "uint256" }] },
+  { "type": "function", "name": "currentReferralRewardBP", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "uint256" }] },
+  { "type": "function", "name": "updateEconomics", "stateMutability": "nonpayable", "inputs": [{ "type": "uint256", "name": "newHouseEdgeBP" }, { "type": "uint256", "name": "newReferralRewardBP" }], "outputs": [] }
 ] as const
 
 const ERC20_ABI = [
@@ -43,6 +46,8 @@ export default function AdminPage() {
   const [fundAmount, setFundAmount] = useState("")
   const [minBetInput, setMinBetInput] = useState("")
   const [maxBetInput, setMaxBetInput] = useState("")
+  const [houseEdgeInput, setHouseEdgeInput] = useState("2.5")
+  const [referralRewardInput, setReferralRewardInput] = useState("1.0")
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const isCorrectChain = useMemo(() => chainId && SUPPORTED_CHAINS.includes(chainId), [chainId])
@@ -53,11 +58,39 @@ export default function AdminPage() {
   const { data: isPaused, refetch: refetchPaused } = useReadContract({ address: proxyAddress, abi: ADMIN_ABI, functionName: 'paused', query: { enabled: !!isCorrectChain && !!proxyAddress } })
   const { data: betLimits, refetch: refetchLimits } = useReadContract({ address: proxyAddress, abi: ADMIN_ABI, functionName: 'getBetLimits', query: { enabled: !!isCorrectChain && !!proxyAddress } })
   const { data: currentCUSD, refetch: refetchCusdAddr } = useReadContract({ address: proxyAddress, abi: ADMIN_ABI, functionName: 'cUSD', query: { enabled: !!isCorrectChain && !!proxyAddress } })
+  const { data: currentHouseEdge, refetch: refetchHouseEdge } = useReadContract({ address: proxyAddress, abi: ADMIN_ABI, functionName: 'currentHouseEdgeBP', query: { enabled: !!isCorrectChain && !!proxyAddress } })
+  const { data: currentReferralReward, refetch: refetchReferralReward } = useReadContract({ address: proxyAddress, abi: ADMIN_ABI, functionName: 'currentReferralRewardBP', query: { enabled: !!isCorrectChain && !!proxyAddress } })
+
+  useEffect(() => {
+    if (currentHouseEdge !== undefined) setHouseEdgeInput((Number(currentHouseEdge) / 100).toFixed(1))
+    if (currentReferralReward !== undefined) setReferralRewardInput((Number(currentReferralReward) / 100).toFixed(1))
+  }, [currentHouseEdge, currentReferralReward])
+
+  const handleHouseEdgeChange = (val: string) => {
+    setHouseEdgeInput(val)
+    const houseEdgeNum = parseFloat(val)
+    const refRewardNum = parseFloat(referralRewardInput)
+    // Tethering: Ensure referral is always less than house edge
+    if (!isNaN(houseEdgeNum) && !isNaN(refRewardNum) && refRewardNum >= houseEdgeNum) {
+      setReferralRewardInput(Math.max(0.1, houseEdgeNum - 0.5).toFixed(1))
+    }
+  }
+
+  const handleReferralRewardChange = (val: string) => {
+    const valNum = parseFloat(val)
+    const houseEdgeNum = parseFloat(houseEdgeInput)
+    if (!isNaN(valNum) && !isNaN(houseEdgeNum) && valNum >= houseEdgeNum) {
+      toast.error(`Referral reward must be strictly less than House Edge (${houseEdgeInput}%)`)
+      setReferralRewardInput(Math.max(0.1, houseEdgeNum - 0.5).toFixed(1))
+    } else {
+      setReferralRewardInput(val)
+    }
+  }
 
   // Balances
   const { data: celoBankroll, refetch: refetchCelo } = useBalance({ address: proxyAddress, chainId: chainId, query: { enabled: !!isCorrectChain && !!proxyAddress, refetchInterval: 5000 } })
   const { data: cusdBalanceRaw, refetch: refetchCusdBalance } = useReadContract({
-    address: currentCUSD,
+    address: currentCUSD as `0x${string}`,
     abi: [{ type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] }],
     functionName: 'balanceOf',
     args: proxyAddress ? [proxyAddress] : undefined,
@@ -71,11 +104,13 @@ export default function AdminPage() {
       refetchPaused(),
       refetchLimits(),
       refetchCusdAddr(),
+      refetchHouseEdge(),
+      refetchReferralReward(),
       refetchCelo(),
       refetchCusdBalance()
     ])
     setTimeout(() => setIsRefreshing(false), 1000)
-  }, [refetchOwner, refetchPaused, refetchLimits, refetchCusdAddr, refetchCelo, refetchCusdBalance])
+  }, [refetchOwner, refetchPaused, refetchLimits, refetchCusdAddr, refetchHouseEdge, refetchReferralReward, refetchCelo, refetchCusdBalance])
 
   const handleAction = async (fn: string, args: any[], successMsg: string, value?: bigint, abiOverride?: any) => {
     if (!proxyAddress) return
@@ -213,6 +248,23 @@ export default function AdminPage() {
                       <Button variant="outline" className="flex-1 h-12 font-bold border-gold/30 hover:bg-gold/10" onClick={() => handleAction("withdrawCELO", [parseEther(withdrawAmount)], "CELO withdrawn")}>CELO</Button>
                       <Button variant="outline" className="flex-1 h-12 font-bold border-gold/30 hover:bg-gold/10" onClick={() => currentCUSD && handleAction("withdrawToken", [(currentCUSD as string), parseUnits(withdrawAmount, 18)], "cUSD withdrawn")}>cUSD</Button>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-card/80 border-gold/20 shadow-xl lg:col-span-1">
+                <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><Settings className="w-3.5 h-3.5 text-gold" /> Protocol Economics</CardTitle></CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">House Edge (%)</label>
+                      <Input type="number" step="0.1" value={houseEdgeInput} onChange={(e) => handleHouseEdgeChange(e.target.value)} className="h-9 text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Referral Reward (%)</label>
+                      <Input type="number" step="0.1" value={referralRewardInput} onChange={(e) => handleReferralRewardChange(e.target.value)} className="h-9 text-xs" />
+                    </div>
+                    <Button size="sm" className="w-full font-bold" onClick={() => handleAction("updateEconomics", [Math.round(parseFloat(houseEdgeInput) * 100), Math.round(parseFloat(referralRewardInput) * 100)], "Economics updated")}>UPDATE ECONOMICS</Button>
                   </div>
                 </CardContent>
               </Card>

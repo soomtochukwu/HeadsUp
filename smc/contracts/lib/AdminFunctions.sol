@@ -89,4 +89,53 @@ abstract contract AdminFunctions is
     function fundContract() external payable onlyOwner {
         require(msg.value > 0, "Must send some funds");
     }
+
+    /**
+     * @dev Admin function to tune protocol economics
+     * @param newHouseEdgeBP The new house edge in basis points (e.g. 250 = 2.5%)
+     * @param newReferralRewardBP The new referral reward in basis points (e.g. 100 = 1%)
+     */
+    function updateEconomics(uint256 newHouseEdgeBP, uint256 newReferralRewardBP) external onlyOwner {
+        // Enforce strict mathematical constraint: Referral reward MUST be less than house edge
+        // to guarantee protocol profitability and prevent Sybil attacks.
+        require(newReferralRewardBP < newHouseEdgeBP, "Referral reward must be < house edge");
+        require(newHouseEdgeBP <= 1000, "House edge too high (max 10%)"); // Reasonable upper bound
+
+        currentHouseEdgeBP = newHouseEdgeBP;
+        currentReferralRewardBP = newReferralRewardBP;
+
+        emit EconomicsUpdated(newHouseEdgeBP, newReferralRewardBP);
+    }
+
+    /**
+     * @dev Allows a referrer to claim their accrued rewards (CELO and cUSD)
+     */
+    function claimReferralRewards() external whenNotPaused {
+        uint256 celoRewards = referralEarningsCELO[msg.sender];
+        uint256 cusdRewards = referralEarningsCUSD[msg.sender];
+
+        require(celoRewards > 0 || cusdRewards > 0, "No rewards to claim");
+
+        // Reset balances before transfer (Checks-Effects-Interactions)
+        if (celoRewards > 0) {
+            referralEarningsCELO[msg.sender] = 0;
+        }
+        if (cusdRewards > 0) {
+            referralEarningsCUSD[msg.sender] = 0;
+        }
+
+        // Transfer CELO
+        if (celoRewards > 0) {
+            (bool success, ) = payable(msg.sender).call{value: celoRewards}("");
+            require(success, "CELO transfer failed");
+            emit ReferralRewardClaimed(msg.sender, address(0), celoRewards);
+        }
+
+        // Transfer cUSD
+        if (cusdRewards > 0) {
+            bool success = IERC20(cUSD).transfer(msg.sender, cusdRewards);
+            require(success, "cUSD transfer failed");
+            emit ReferralRewardClaimed(msg.sender, cUSD, cusdRewards);
+        }
+    }
 }

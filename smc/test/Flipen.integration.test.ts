@@ -92,11 +92,11 @@ describe("Flipen Integration Tests", function () {
     const betAmount = ethers.parseEther("10");
 
     // Player 1 loses
-    await flipen.connect(players[0]).flipCoin(1, { value: betAmount });
+    await flipen.connect(players[0]).flipCoin(1, ethers.ZeroAddress, { value: betAmount });
     await mockVRFCoordinator.fulfillRandomWords(1, [0]); // Tails, player chose heads
 
     // Player 2 wins
-    await flipen.connect(players[1]).flipCoin(1, { value: betAmount });
+    await flipen.connect(players[1]).flipCoin(1, ethers.ZeroAddress, { value: betAmount });
     await mockVRFCoordinator.fulfillRandomWords(2, [1]); // Heads, player chose heads
 
     const finalBalance = await ethers.provider.getBalance(
@@ -116,7 +116,7 @@ describe("Flipen Integration Tests", function () {
     const betAmount = ethers.parseEther("1");
 
     // Place a bet
-    await flipen.connect(players[0]).flipCoin(1, { value: betAmount });
+    await flipen.connect(players[0]).flipCoin(1, ethers.ZeroAddress, { value: betAmount });
 
     // Upgrade contract
     const FlipenV2Factory = await ethers.getContractFactory("Flipen");
@@ -145,7 +145,7 @@ describe("Flipen Integration Tests", function () {
       const choice = i % 2; // Alternate between heads and tails
       
       gamePromises.push(
-        flipen.connect(players[playerIndex]).flipCoin(choice, { value: betAmount })
+        flipen.connect(players[playerIndex]).flipCoin(choice, ethers.ZeroAddress, { value: betAmount })
       );
     }
 
@@ -185,7 +185,7 @@ describe("Flipen Integration Tests", function () {
     // Try to place a large bet that would exceed available balance for payout
     const largeBet = ethers.parseEther("15");
     await expect(
-      flipen.connect(players[0]).flipCoin(1, { value: largeBet })
+      flipen.connect(players[0]).flipCoin(1, ethers.ZeroAddress, { value: largeBet })
     ).to.be.revertedWith("Insufficient contract balance for potential payout");
 
     // Refund the contract
@@ -196,7 +196,7 @@ describe("Flipen Integration Tests", function () {
 
     // Now the large bet should work
     await expect(
-      flipen.connect(players[0]).flipCoin(1, { value: largeBet })
+      flipen.connect(players[0]).flipCoin(1, ethers.ZeroAddress, { value: largeBet })
     ).to.emit(flipen, "GameRequested");
   });
 
@@ -205,9 +205,9 @@ describe("Flipen Integration Tests", function () {
     const player = players[0];
 
     // Player makes multiple games
-    await flipen.connect(player).flipCoin(1, { value: betAmount });
-    await flipen.connect(player).flipCoin(0, { value: betAmount });
-    await flipen.connect(player).flipCoin(1, { value: betAmount });
+    await flipen.connect(player).flipCoin(1, ethers.ZeroAddress, { value: betAmount });
+    await flipen.connect(player).flipCoin(0, ethers.ZeroAddress, { value: betAmount });
+    await flipen.connect(player).flipCoin(1, ethers.ZeroAddress, { value: betAmount });
 
     // Fulfill games with different outcomes
     await mockVRFCoordinator.fulfillRandomWords(1, [1]); // Win
@@ -237,8 +237,8 @@ describe("Flipen Integration Tests", function () {
     const betAmount = ethers.parseEther("1");
 
     // Place some bets
-    await flipen.connect(players[0]).flipCoin(1, { value: betAmount });
-    await flipen.connect(players[1]).flipCoin(0, { value: betAmount });
+    await flipen.connect(players[0]).flipCoin(1, ethers.ZeroAddress, { value: betAmount });
+    await flipen.connect(players[1]).flipCoin(0, ethers.ZeroAddress, { value: betAmount });
 
     // Admin updates bet limits while games are pending
     const newMinBet = ethers.parseEther("0.02");

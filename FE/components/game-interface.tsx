@@ -218,13 +218,21 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
       setGameResult(null)
       const choice = selectedSide === "tails" ? 0 : 1
       let hash: `0x${string}`
+      
+      let referrerAddress = "0x0000000000000000000000000000000000000000";
+      if (typeof window !== "undefined") {
+        const storedReferrer = localStorage.getItem("headsup_referrer");
+        if (storedReferrer && /^0x[a-fA-F0-9]{40}$/.test(storedReferrer) && storedReferrer.toLowerCase() !== address.toLowerCase()) {
+          referrerAddress = storedReferrer;
+        }
+      }
 
       if (selectedAsset === "CELO") {
         hash = await writeContractAsync({
           address: proxyAddress,
           abi: contractABI as any,
           functionName: "flipCoin",
-          args: [choice],
+          args: [choice, referrerAddress],
           value: parseEther(betAmount[0].toString()),
         })
       } else {
@@ -244,7 +252,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
           address: proxyAddress,
           abi: contractABI as any,
           functionName: "flipCoinERC20",
-          args: [choice, amount, cUSDAddress!],
+          args: [choice, amount, cUSDAddress!, referrerAddress],
         })
       }
 

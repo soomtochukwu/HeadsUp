@@ -50,6 +50,20 @@ const config = getDefaultConfig({
 
 const queryClient = new QueryClient();
 
+function ReferralTracker() {
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const ref = urlParams.get("ref");
+      // Basic validation for Ethereum address format
+      if (ref && /^0x[a-fA-F0-9]{40}$/.test(ref)) {
+        localStorage.setItem("headsup_referrer", ref);
+      }
+    }
+  }, []);
+  return null;
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
@@ -62,6 +76,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           })}
           modalSize="compact"
         >
+          <ReferralTracker />
           {children}
         </RainbowKitProvider>
       </WagmiProvider>

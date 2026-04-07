@@ -66,7 +66,7 @@ describe("Flipen", function () {
       const choice = 1; // heads
       const seed = 12345;
       
-      await expect(flipen.connect(player1).flipCoin(choice, seed, { value: betAmount }))
+      await expect(flipen.connect(player1).flipCoin(choice, ethers.ZeroAddress, { value: betAmount }))
         .to.emit(flipen, "GameRequested")
         .withArgs(1, player1.address, betAmount, choice, anyValue, ethers.ZeroAddress);
     });
@@ -78,7 +78,7 @@ describe("Flipen", function () {
       
       const initialBalance = await ethers.provider.getBalance(player1.address);
       
-      const tx = await flipen.connect(player1).flipCoin(choice, winningSeed, { value: betAmount });
+      const tx = await flipen.connect(player1).flipCoin(choice, ethers.ZeroAddress, { value: betAmount });
       const receipt = await tx.wait();
       const gasUsed = receipt!.gasUsed * receipt!.gasPrice;
       
@@ -98,7 +98,7 @@ describe("Flipen", function () {
       
       const initialBalance = await ethers.provider.getBalance(player1.address);
       
-      const tx = await flipen.connect(player1).flipCoin(choice, losingSeed, { value: betAmount });
+      const tx = await flipen.connect(player1).flipCoin(choice, ethers.ZeroAddress, { value: betAmount });
       const receipt = await tx.wait();
       const gasUsed = receipt!.gasUsed * receipt!.gasPrice;
       
@@ -123,7 +123,7 @@ describe("Flipen", function () {
       const choice = 0; // tails
       const seed = 123456;
       
-      await expect(flipen.connect(player1).flipCoinERC20(choice, seed, betAmount, await mockCUSD.getAddress()))
+      await expect(flipen.connect(player1).flipCoinERC20(choice, betAmount, await mockCUSD.getAddress(), ethers.ZeroAddress))
         .to.emit(flipen, "GameRequested");
     });
 
@@ -133,7 +133,7 @@ describe("Flipen", function () {
       const winningSeed = 2; // 2 % 2 = 0 (tails)
       
       const initialBalance = await mockCUSD.balanceOf(player1.address);
-      await flipen.connect(player1).flipCoinERC20(choice, winningSeed, betAmount, await mockCUSD.getAddress());
+      await flipen.connect(player1).flipCoinERC20(choice, betAmount, await mockCUSD.getAddress(), ethers.ZeroAddress);
       const finalBalance = await mockCUSD.balanceOf(player1.address);
       
       const expectedPayout = (betAmount * BigInt(PAYOUT_PERCENTAGE)) / BigInt(10000);

@@ -51,7 +51,8 @@ abstract contract FlipenStorage is Initializable {
         uint256 amount,
         uint8 playerChoice,
         uint256 commitBlock,
-        address token
+        address token,
+        address referrer
     );
     
     event GameResult(
@@ -78,6 +79,21 @@ abstract contract FlipenStorage is Initializable {
     event FundsWithdrawn(address indexed owner, address token, uint256 amount);
     event BetLimitsUpdated(uint256 minBet, uint256 maxBet);
     event TokenUpdated(address indexed token);
+    
+    // Referral & Economics Events
+    event ReferralBound(address indexed player, address indexed referrer);
+    event ReferralRewardAccrued(address indexed referrer, address indexed token, uint256 amount);
+    event ReferralRewardClaimed(address indexed referrer, address indexed token, uint256 amount);
+    event EconomicsUpdated(uint256 newHouseEdgeBP, uint256 newReferralRewardBP);
+
+    // --- V2 Storage Appended Below ---
+    mapping(address => address) public referrers;
+    mapping(address => uint256) public referralEarningsCELO;
+    mapping(address => uint256) public referralEarningsCUSD;
+
+    uint256 public currentHouseEdgeBP;
+    uint256 public currentReferralRewardBP;
+    // ---------------------------------
 
     function __FlipenStorage_init() internal onlyInitializing {
         minBetAmount = 0.01 ether; 
@@ -85,5 +101,9 @@ abstract contract FlipenStorage is Initializable {
         gameCounter = 1; 
         // Celo Sepolia cUSD address
         cUSD = 0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1; 
+        
+        // V2 Initialization
+        currentHouseEdgeBP = 250; // 2.5% default
+        currentReferralRewardBP = 100; // 1.0% default
     }
 }

@@ -52,7 +52,7 @@ describe("Flipen Gas Optimization Tests", function () {
 
     const tx = await flipen
       .connect(player)
-      .flipCoin(choice, { value: betAmount });
+      .flipCoin(choice, ethers.ZeroAddress, { value: betAmount });
     const receipt = await tx.wait();
 
     console.log(`flipCoin gas used: ${receipt?.gasUsed}`);
@@ -63,7 +63,7 @@ describe("Flipen Gas Optimization Tests", function () {
     const betAmount = ethers.parseEther("1");
     const choice = 1;
 
-    await flipen.connect(player).flipCoin(choice, { value: betAmount });
+    await flipen.connect(player).flipCoin(choice, ethers.ZeroAddress, { value: betAmount });
 
     const tx = await mockVRFCoordinator.fulfillRandomWords(1, [1]);
     const receipt = await tx.wait();
@@ -81,7 +81,7 @@ describe("Flipen Gas Optimization Tests", function () {
     for (let i = 0; i < numGames; i++) {
       const tx = await flipen
         .connect(player)
-        .flipCoin(choice, { value: betAmount });
+        .flipCoin(choice, ethers.ZeroAddress, { value: betAmount });
       const receipt = await tx.wait();
       
       if (receipt?.gasUsed) {
@@ -122,7 +122,7 @@ describe("Flipen Gas Optimization Tests", function () {
     const choice = 1;
 
     // Make a game first
-    await flipen.connect(player).flipCoin(choice, { value: betAmount });
+    await flipen.connect(player).flipCoin(choice, ethers.ZeroAddress, { value: betAmount });
 
     // Test view functions (these should be free when called as view)
     const stats = await flipen.getContractStats();

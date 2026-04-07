@@ -2,39 +2,78 @@
 pragma solidity ^0.8.28;
 
 import "./FlipenStorage.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+abstract contract ReentrancyGuardUpgradeable is Initializable {
+    uint256 private constant NOT_ENTERED = 1;
+    uint256 private constant ENTERED = 2;
+
+    /// @custom:storage-location erc7201:openzeppelin.storage.ReentrancyGuard
+    struct ReentrancyGuardStorage {
+        uint256 _status;
+    }
+    // keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.ReentrancyGuard")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant ReentrancyGuardStorageLocation = 0x9b779b17422d0df92223018b32b4d1fa46e071723d6817e2486d003becc55f00;
+
+    function _getReentrancyGuardStorage() private pure returns (ReentrancyGuardStorage storage $) {
+        assembly {
+            $.slot := ReentrancyGuardStorageLocation
+        }
+    }
+
+    function __ReentrancyGuard_init() internal onlyInitializing {
+        _getReentrancyGuardStorage()._status = NOT_ENTERED;
+    }
+
+    modifier nonReentrant() {
+        _nonReentrantBefore();
+        _;
+        _nonReentrantAfter();
+    }
+
+    function _nonReentrantBefore() private {
+        ReentrancyGuardStorage storage $ = _getReentrancyGuardStorage();
+        require($._status != ENTERED, "ReentrancyGuard: reentrant call");
+        $._status = ENTERED;
+    }
+
+    function _nonReentrantAfter() private {
+        ReentrancyGuardStorage storage $ = _getReentrancyGuardStorage();
+        $._status = NOT_ENTERED;
+    }
+}
 
 abstract contract GameLogic is
     FlipenStorage,
-    ReentrancyGuard
+    ReentrancyGuardUpgradeable
 {
     function __GameLogic_init() internal onlyInitializing {
+        __ReentrancyGuard_init();
     }
 
     /**
      * @dev Step 1: Commitment - Place a bet with native CELO
      */
-    function flipCoin(uint8 choice) external payable nonReentrant {
-        _playGame(choice, msg.value, address(0));
+    function flipCoin(uint8 choice, address referrer) external payable nonReentrant {
+        _playGame(choice, msg.value, address(0), referrer);
     }
 
     /**
      * @dev Step 1: Commitment - Place a bet with cUSD or other ERC20
      */
-    function flipCoinERC20(uint8 choice, uint256 amount, address token) external nonReentrant {
+    function flipCoinERC20(uint8 choice, uint256 amount, address token, address referrer) external nonReentrant {
         require(token == cUSD, "Only cUSD supported for now");
         
         // Transfer tokens from player to contract
         require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Token transfer failed");
         
-        _playGame(choice, amount, token);
+        _playGame(choice, amount, token, referrer);
     }
 
     /**
      * @dev Internal game logic to store commitment
      */
-    function _playGame(uint8 choice, uint256 amount, address token) internal {
+    function _playGame(uint8 choice, uint256 amount, address token, address referrer) internal {
         require(
             choice == 0 || choice == 1,
             "Invalid choice: must be 0 (tails) or 1 (heads)"
@@ -42,7 +81,11 @@ abstract contract GameLogic is
         require(amount >= minBetAmount, "Bet amount too low");
         require(amount <= maxBetAmount, "Bet amount too high");
         
-        uint256 potentialPayout = (amount * PAYOUT_PERCENTAGE) / BASIS_POINTS;
+        // Dynamic payout calculation based on current house edge
+        // House Edge of 2.5% (250) means a payout of 1.95x (19500)
+        // Formula: 20000 - (2 * currentHouseEdgeBP)
+        uint256 dynamicPayoutPercentage = 20000 - (2 * currentHouseEdgeBP);
+        uint256 potentialPayout = (amount * dynamicPayoutPercentage) / BASIS_POINTS;
         
         if (token == address(0)) {
             require(
@@ -54,6 +97,12 @@ abstract contract GameLogic is
                 IERC20(token).balanceOf(address(this)) >= potentialPayout,
                 "Insufficient contract token balance"
             );
+        }
+
+        // Referral Binding Logic
+        if (referrer != address(0) && referrer != msg.sender && referrers[msg.sender] == address(0)) {
+            referrers[msg.sender] = referrer;
+            emit ReferralBound(msg.sender, referrer);
         }
 
         // Generate unique request ID
@@ -78,7 +127,7 @@ abstract contract GameLogic is
         totalGamesPlayed++;
         totalVolume += amount;
 
-        emit GameRequested(gameId, msg.sender, amount, choice, block.number, token);
+        emit GameRequested(gameId, msg.sender, amount, choice, block.number, token, referrers[msg.sender]);
     }
 
     /**
@@ -118,8 +167,21 @@ abstract contract GameLogic is
         game.won = won;
         game.status = GameStatus.FULFILLED;
 
+        // Referral Reward Accrual (happens regardless of win/loss)
+        address activeReferrer = referrers[game.player];
+        if (activeReferrer != address(0)) {
+            uint256 referralReward = (game.amount * currentReferralRewardBP) / BASIS_POINTS;
+            if (game.token == address(0)) {
+                referralEarningsCELO[activeReferrer] += referralReward;
+            } else {
+                referralEarningsCUSD[activeReferrer] += referralReward;
+            }
+            emit ReferralRewardAccrued(activeReferrer, game.token, referralReward);
+        }
+
         if (won) {
-            payout = (game.amount * PAYOUT_PERCENTAGE) / BASIS_POINTS;
+            uint256 dynamicPayoutPercentage = 20000 - (2 * currentHouseEdgeBP);
+            payout = (game.amount * dynamicPayoutPercentage) / BASIS_POINTS;
             
             if (game.token == address(0)) {
                 (bool success, ) = payable(game.player).call{value: payout}("");
