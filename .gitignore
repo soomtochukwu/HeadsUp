@@ -1,3 +1,5 @@
 .vercel
 .marscode
 plans.md
+
+.github/workflows/*
