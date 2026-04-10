@@ -27,7 +27,10 @@ const ADMIN_ABI = [
   { "type": "function", "name": "cUSD", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "address" }] },
   { "type": "function", "name": "currentHouseEdgeBP", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "uint256" }] },
   { "type": "function", "name": "currentReferralRewardBP", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "uint256" }] },
-  { "type": "function", "name": "updateEconomics", "stateMutability": "nonpayable", "inputs": [{ "type": "uint256", "name": "newHouseEdgeBP" }, { "type": "uint256", "name": "newReferralRewardBP" }], "outputs": [] }
+  { "type": "function", "name": "updateEconomics", "stateMutability": "nonpayable", "inputs": [{ "type": "uint256", "name": "newHouseEdgeBP" }, { "type": "uint256", "name": "newReferralRewardBP" }], "outputs": [] },
+  { "type": "function", "name": "onboardingBonusCELO", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "uint256" }] },
+  { "type": "function", "name": "onboardingBonusCUSD", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "uint256" }] },
+  { "type": "function", "name": "updateOnboardingBonus", "stateMutability": "nonpayable", "inputs": [{ "type": "uint256", "name": "_celoAmount" }, { "type": "uint256", "name": "_cusdAmount" }], "outputs": [] }
 ] as const
 
 const ERC20_ABI = [
@@ -48,6 +51,8 @@ export default function AdminPage() {
   const [maxBetInput, setMaxBetInput] = useState("")
   const [houseEdgeInput, setHouseEdgeInput] = useState("2.5")
   const [referralRewardInput, setReferralRewardInput] = useState("1.0")
+  const [bonusCeloInput, setBonusCeloInput] = useState("0")
+  const [bonusCusdInput, setBonusCusdInput] = useState("0")
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const isCorrectChain = useMemo(() => chainId && SUPPORTED_CHAINS.includes(chainId), [chainId])
@@ -60,11 +65,15 @@ export default function AdminPage() {
   const { data: currentCUSD, refetch: refetchCusdAddr } = useReadContract({ address: proxyAddress, abi: ADMIN_ABI, functionName: 'cUSD', query: { enabled: !!isCorrectChain && !!proxyAddress } })
   const { data: currentHouseEdge, refetch: refetchHouseEdge } = useReadContract({ address: proxyAddress, abi: ADMIN_ABI, functionName: 'currentHouseEdgeBP', query: { enabled: !!isCorrectChain && !!proxyAddress } })
   const { data: currentReferralReward, refetch: refetchReferralReward } = useReadContract({ address: proxyAddress, abi: ADMIN_ABI, functionName: 'currentReferralRewardBP', query: { enabled: !!isCorrectChain && !!proxyAddress } })
+  const { data: currentBonusCELO, refetch: refetchBonusCELO } = useReadContract({ address: proxyAddress, abi: ADMIN_ABI, functionName: 'onboardingBonusCELO', query: { enabled: !!isCorrectChain && !!proxyAddress } })
+  const { data: currentBonusCUSD, refetch: refetchBonusCUSD } = useReadContract({ address: proxyAddress, abi: ADMIN_ABI, functionName: 'onboardingBonusCUSD', query: { enabled: !!isCorrectChain && !!proxyAddress } })
 
   useEffect(() => {
     if (currentHouseEdge !== undefined) setHouseEdgeInput((Number(currentHouseEdge) / 100).toFixed(1))
     if (currentReferralReward !== undefined) setReferralRewardInput((Number(currentReferralReward) / 100).toFixed(1))
-  }, [currentHouseEdge, currentReferralReward])
+    if (currentBonusCELO !== undefined) setBonusCeloInput(formatUnits(currentBonusCELO as bigint, 18))
+    if (currentBonusCUSD !== undefined) setBonusCusdInput(formatUnits(currentBonusCUSD as bigint, 18))
+  }, [currentHouseEdge, currentReferralReward, currentBonusCELO, currentBonusCUSD])
 
   const handleHouseEdgeChange = (val: string) => {
     setHouseEdgeInput(val)
@@ -106,11 +115,13 @@ export default function AdminPage() {
       refetchCusdAddr(),
       refetchHouseEdge(),
       refetchReferralReward(),
+      refetchBonusCELO(),
+      refetchBonusCUSD(),
       refetchCelo(),
       refetchCusdBalance()
     ])
     setTimeout(() => setIsRefreshing(false), 1000)
-  }, [refetchOwner, refetchPaused, refetchLimits, refetchCusdAddr, refetchHouseEdge, refetchReferralReward, refetchCelo, refetchCusdBalance])
+  }, [refetchOwner, refetchPaused, refetchLimits, refetchCusdAddr, refetchHouseEdge, refetchReferralReward, refetchBonusCELO, refetchBonusCUSD, refetchCelo, refetchCusdBalance])
 
   const handleAction = async (fn: string, args: any[], successMsg: string, value?: bigint, abiOverride?: any) => {
     if (!proxyAddress) return
@@ -265,6 +276,23 @@ export default function AdminPage() {
                       <Input type="number" step="0.1" value={referralRewardInput} onChange={(e) => handleReferralRewardChange(e.target.value)} className="h-9 text-xs" />
                     </div>
                     <Button size="sm" className="w-full font-bold" onClick={() => handleAction("updateEconomics", [Math.round(parseFloat(houseEdgeInput) * 100), Math.round(parseFloat(referralRewardInput) * 100)], "Economics updated")}>UPDATE ECONOMICS</Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-card/80 border-gold/20 shadow-xl lg:col-span-1">
+                <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><Settings className="w-3.5 h-3.5 text-gold" /> Campaigns & Bonuses</CardTitle></CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Onboarding Bonus (CELO)</label>
+                      <Input type="number" step="0.01" value={bonusCeloInput} onChange={(e) => setBonusCeloInput(e.target.value)} className="h-9 text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Onboarding Bonus (cUSD)</label>
+                      <Input type="number" step="0.01" value={bonusCusdInput} onChange={(e) => setBonusCusdInput(e.target.value)} className="h-9 text-xs" />
+                    </div>
+                    <Button size="sm" className="w-full font-bold" onClick={() => handleAction("updateOnboardingBonus", [parseEther(bonusCeloInput || "0"), parseEther(bonusCusdInput || "0")], "Onboarding bonus updated")}>UPDATE BONUSES</Button>
                   </div>
                 </CardContent>
               </Card>
