@@ -138,4 +138,48 @@ abstract contract AdminFunctions is
             emit ReferralRewardClaimed(msg.sender, cUSD, cusdRewards);
         }
     }
+
+    /**
+     * @dev Admin function to set onboarding bonus amounts
+     */
+    function updateOnboardingBonus(uint256 _celoAmount, uint256 _cusdAmount) external onlyOwner {
+        onboardingBonusCELO = _celoAmount;
+        onboardingBonusCUSD = _cusdAmount;
+        emit OnboardingBonusUpdated(_celoAmount, _cusdAmount);
+    }
+
+    /**
+     * @dev Allows users to claim their one-time onboarding bonus
+     * @param token Address of the token to claim (address(0) for CELO, cUSD address for cUSD)
+     */
+    function claimOnboardingBonus(address token) external whenNotPaused {
+        require(!hasClaimedOnboardingBonus[msg.sender], "Already claimed");
+        require(playerGames[msg.sender].length > 0, "Must play at least once");
+        require(refereeCount[msg.sender] > 0, "Must refer at least one friend");
+
+        uint256 amountToClaim = 0;
+        if (token == address(0)) {
+            amountToClaim = onboardingBonusCELO;
+            require(amountToClaim > 0, "CELO bonus not active");
+            require(address(this).balance >= amountToClaim, "Insufficient contract balance");
+            
+            hasClaimedOnboardingBonus[msg.sender] = true;
+            (bool success, ) = payable(msg.sender).call{value: amountToClaim}("");
+            require(success, "CELO transfer failed");
+            
+            emit OnboardingBonusClaimed(msg.sender, address(0), amountToClaim);
+        } else if (token == cUSD) {
+            amountToClaim = onboardingBonusCUSD;
+            require(amountToClaim > 0, "cUSD bonus not active");
+            require(IERC20(cUSD).balanceOf(address(this)) >= amountToClaim, "Insufficient contract token balance");
+            
+            hasClaimedOnboardingBonus[msg.sender] = true;
+            bool success = IERC20(cUSD).transfer(msg.sender, amountToClaim);
+            require(success, "cUSD transfer failed");
+            
+            emit OnboardingBonusClaimed(msg.sender, cUSD, amountToClaim);
+        } else {
+            revert("Unsupported token");
+        }
+    }
 }

@@ -1135,6 +1135,385 @@
           ]
         }
       }
+    },
+    "8b5f247df77ac1f890197f136b4c049858f18995217a69c669962c7e4d380c29": {
+      "address": "0x96Dadd3B033A4E63F8C4be584DC49A805df28c96",
+      "txHash": "0x60c91aac3835a08c401775d67a61861335cea55b4531ef79bd458ad5d643dfde",
+      "layout": {
+        "solcVersion": "0.8.28",
+        "storage": [
+          {
+            "label": "gameRequests",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_mapping(t_uint256,t_struct(GameRequest)2538_storage)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:23"
+          },
+          {
+            "label": "playerGames",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_mapping(t_address,t_array(t_uint256)dyn_storage)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:24"
+          },
+          {
+            "label": "gameCounter",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:27"
+          },
+          {
+            "label": "totalGamesPlayed",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:30"
+          },
+          {
+            "label": "totalVolume",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:31"
+          },
+          {
+            "label": "platformFees",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:32"
+          },
+          {
+            "label": "minBetAmount",
+            "offset": 0,
+            "slot": "6",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:41"
+          },
+          {
+            "label": "maxBetAmount",
+            "offset": 0,
+            "slot": "7",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:42"
+          },
+          {
+            "label": "cUSD",
+            "offset": 0,
+            "slot": "8",
+            "type": "t_address",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:45"
+          },
+          {
+            "label": "referrers",
+            "offset": 0,
+            "slot": "9",
+            "type": "t_mapping(t_address,t_address)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:90"
+          },
+          {
+            "label": "referralEarningsCELO",
+            "offset": 0,
+            "slot": "10",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:91"
+          },
+          {
+            "label": "referralEarningsCUSD",
+            "offset": 0,
+            "slot": "11",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:92"
+          },
+          {
+            "label": "currentHouseEdgeBP",
+            "offset": 0,
+            "slot": "12",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:94"
+          },
+          {
+            "label": "currentReferralRewardBP",
+            "offset": 0,
+            "slot": "13",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:95"
+          },
+          {
+            "label": "refereeCount",
+            "offset": 0,
+            "slot": "14",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:97"
+          },
+          {
+            "label": "onboardingBonusCELO",
+            "offset": 0,
+            "slot": "15",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:100"
+          },
+          {
+            "label": "onboardingBonusCUSD",
+            "offset": 0,
+            "slot": "16",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:101"
+          },
+          {
+            "label": "hasClaimedOnboardingBonus",
+            "offset": 0,
+            "slot": "17",
+            "type": "t_mapping(t_address,t_bool)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:102"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)301_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)100_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(PausableStorage)198_storage": {
+            "label": "struct PausableUpgradeable.PausableStorage",
+            "members": [
+              {
+                "label": "_paused",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(ReentrancyGuardStorage)910_storage": {
+            "label": "struct ReentrancyGuardUpgradeable.ReentrancyGuardStorage",
+            "members": [
+              {
+                "label": "_status",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_array(t_uint256)dyn_storage": {
+            "label": "uint256[]",
+            "numberOfBytes": "32"
+          },
+          "t_enum(GameStatus)2516": {
+            "label": "enum FlipenStorage.GameStatus",
+            "members": [
+              "PENDING",
+              "FULFILLED",
+              "CANCELLED",
+              "EXPIRED"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_address)": {
+            "label": "mapping(address => address)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_array(t_uint256)dyn_storage)": {
+            "label": "mapping(address => uint256[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(GameRequest)2538_storage)": {
+            "label": "mapping(uint256 => struct FlipenStorage.GameRequest)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(GameRequest)2538_storage": {
+            "label": "struct FlipenStorage.GameRequest",
+            "members": [
+              {
+                "label": "player",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "amount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "playerChoice",
+                "type": "t_uint8",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "status",
+                "type": "t_enum(GameStatus)2516",
+                "offset": 1,
+                "slot": "2"
+              },
+              {
+                "label": "won",
+                "type": "t_bool",
+                "offset": 2,
+                "slot": "2"
+              },
+              {
+                "label": "timestamp",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "commitBlock",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "randomNumber",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "coinResult",
+                "type": "t_uint8",
+                "offset": 0,
+                "slot": "6"
+              },
+              {
+                "label": "token",
+                "type": "t_address",
+                "offset": 1,
+                "slot": "6"
+              }
+            ],
+            "numberOfBytes": "224"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol:21",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.ReentrancyGuard": [
+            {
+              "contract": "ReentrancyGuardUpgradeable",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "contracts/lib/GameLogic.sol:13",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
     }
   }
 }

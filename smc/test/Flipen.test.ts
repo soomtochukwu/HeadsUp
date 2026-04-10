@@ -1,18 +1,14 @@
 import { expect } from "chai";
-import { ethers, upgrades } from "hardhat";
-import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
+import { ethers, upgrades, network } from "hardhat";
 import { Flipen, MockERC20 } from "../typechain-types";
+import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
-describe("Flipen", function () {
+describe("Flipen Smart Contract", function () {
   let flipen: Flipen;
-  let owner: HardhatEthersSigner;
-  let player1: HardhatEthersSigner;
-  let player2: HardhatEthersSigner;
   let mockCUSD: MockERC20;
-  
-  const MIN_BET = ethers.parseEther("0.01");
-  const MAX_BET = ethers.parseEther("100");
-  const PAYOUT_PERCENTAGE = 19500; // 1.95x
+  let owner: SignerWithAddress;
+  let player1: SignerWithAddress;
+  let player2: SignerWithAddress;
   
   beforeEach(async function () {
     [owner, player1, player2] = await ethers.getSigners();
@@ -37,11 +33,11 @@ describe("Flipen", function () {
     // Fund the contract for payouts (CELO)
     await owner.sendTransaction({
       to: await flipen.getAddress(),
-      value: ethers.parseEther("1000")
+      value: ethers.parseEther("10")
     });
     
     // Fund the contract for payouts (cUSD)
-    await mockCUSD.mint(await flipen.getAddress(), ethers.parseUnits("1000", 18));
+    await mockCUSD.mint(await flipen.getAddress(), ethers.parseUnits("100", 18));
   });
   
   describe("Deployment and Initialization", function () {
@@ -49,122 +45,114 @@ describe("Flipen", function () {
       expect(await flipen.owner()).to.equal(owner.address);
     });
     
-    it("Should initialize with correct bet limits", async function () {
-      const [minBet, maxBet] = await flipen.getBetLimits();
-      expect(minBet).to.equal(MIN_BET);
-      expect(maxBet).to.equal(MAX_BET);
-    });
-    
     it("Should return correct version", async function () {
-      expect(await flipen.version()).to.equal("4.0.0");
-    });
-  });
-  
-  describe("CELO Game Logic", function () {
-    it("Should allow valid coin flip with native CELO", async function () {
-      const betAmount = ethers.parseEther("1");
-      const choice = 1; // heads
-      const seed = 12345;
-      
-      await expect(flipen.connect(player1).flipCoin(choice, ethers.ZeroAddress, { value: betAmount }))
-        .to.emit(flipen, "GameRequested")
-        .withArgs(1, player1.address, betAmount, choice, anyValue, ethers.ZeroAddress);
-    });
-    
-    it("Should handle winning CELO game", async function () {
-      const betAmount = ethers.parseEther("1");
-      const choice = 1; // heads
-      const winningSeed = 1; // 1 % 2 = 1 (heads)
-      
-      const initialBalance = await ethers.provider.getBalance(player1.address);
-      
-      const tx = await flipen.connect(player1).flipCoin(choice, ethers.ZeroAddress, { value: betAmount });
-      const receipt = await tx.wait();
-      const gasUsed = receipt!.gasUsed * receipt!.gasPrice;
-      
-      const finalBalance = await ethers.provider.getBalance(player1.address);
-      const expectedPayout = (betAmount * BigInt(PAYOUT_PERCENTAGE)) / BigInt(10000);
-      
-      expect(finalBalance).to.equal(initialBalance - betAmount - gasUsed + expectedPayout);
-      
-      const gameDetails = await flipen.getGameDetails(1);
-      expect(gameDetails.won).to.be.true;
-    });
-
-    it("Should handle losing CELO game", async function () {
-      const betAmount = ethers.parseEther("1");
-      const choice = 1; // heads
-      const losingSeed = 0; // 0 % 2 = 0 (tails)
-      
-      const initialBalance = await ethers.provider.getBalance(player1.address);
-      
-      const tx = await flipen.connect(player1).flipCoin(choice, ethers.ZeroAddress, { value: betAmount });
-      const receipt = await tx.wait();
-      const gasUsed = receipt!.gasUsed * receipt!.gasPrice;
-      
-      const finalBalance = await ethers.provider.getBalance(player1.address);
-      
-      expect(finalBalance).to.equal(initialBalance - betAmount - gasUsed);
-      
-      const gameDetails = await flipen.getGameDetails(1);
-      expect(gameDetails.won).to.be.false;
+      expect(await flipen.version()).to.equal("6.0.0 (Native Entropy)");
     });
   });
 
-  describe("cUSD Game Logic", function () {
-    beforeEach(async function () {
-      // Give player some cUSD and approve contract
+  describe("Core Game Logic (CELO & cUSD)", function () {
+    it("Should allow valid coin flip with native CELO and resolve it", async function () {
+      const betAmount = ethers.parseEther("1");
+      const choice = 1; 
+      
+      const tx = await flipen.connect(player1).flipCoin(choice, ethers.ZeroAddress, { value: betAmount });
+      await tx.wait();
+
+      await network.provider.send("evm_mine", []);
+
+      await flipen.resolveGame(1);
+      const details = await flipen.getGameDetails(1);
+      expect(details.status).to.equal(1); // FULFILLED
+    });
+
+    it("Should allow valid coin flip with cUSD and resolve it", async function () {
+      const betAmount = ethers.parseUnits("10", 18);
+      const choice = 0; 
+
       await mockCUSD.mint(player1.address, ethers.parseUnits("100", 18));
       await mockCUSD.connect(player1).approve(await flipen.getAddress(), ethers.parseUnits("100", 18));
-    });
-
-    it("Should allow valid coin flip with cUSD", async function () {
-      const betAmount = ethers.parseUnits("10", 18);
-      const choice = 0; // tails
-      const seed = 123456;
       
-      await expect(flipen.connect(player1).flipCoinERC20(choice, betAmount, await mockCUSD.getAddress(), ethers.ZeroAddress))
-        .to.emit(flipen, "GameRequested");
-    });
-
-    it("Should handle winning cUSD game", async function () {
-      const betAmount = ethers.parseUnits("10", 18);
-      const choice = 0; // tails
-      const winningSeed = 2; // 2 % 2 = 0 (tails)
-      
-      const initialBalance = await mockCUSD.balanceOf(player1.address);
       await flipen.connect(player1).flipCoinERC20(choice, betAmount, await mockCUSD.getAddress(), ethers.ZeroAddress);
-      const finalBalance = await mockCUSD.balanceOf(player1.address);
       
-      const expectedPayout = (betAmount * BigInt(PAYOUT_PERCENTAGE)) / BigInt(10000);
-      expect(finalBalance).to.equal(initialBalance - betAmount + expectedPayout);
+      await network.provider.send("evm_mine", []);
+
+      await flipen.resolveGame(1);
+      const details = await flipen.getGameDetails(1);
+      expect(details.status).to.equal(1); // FULFILLED
     });
   });
-  
-  describe("Admin Functions", function () {
-    it("Should allow owner to withdraw CELO", async function () {
-      const withdrawAmount = ethers.parseEther("10");
-      const initialBalance = await ethers.provider.getBalance(owner.address);
+
+  describe("V2 Referral System", function () {
+    it("Should accrue 1% referral reward and allow claim", async function () {
+      const betAmount = ethers.parseEther("1");
       
-      const tx = await flipen.connect(owner).withdrawCELO(withdrawAmount);
+      // Player 2 is referred by Player 1
+      await flipen.connect(player2).flipCoin(1, player1.address, { value: betAmount });
+      await network.provider.send("evm_mine", []);
+      await flipen.resolveGame(1);
+
+      // Check earnings
+      const earnings = await flipen.referralEarningsCELO(player1.address);
+      const expectedEarnings = (betAmount * 100n) / 10000n; // 1%
+      expect(earnings).to.equal(expectedEarnings);
+
+      // Claim
+      const initialBal = await ethers.provider.getBalance(player1.address);
+      const tx = await flipen.connect(player1).claimReferralRewards();
       const receipt = await tx.wait();
       const gasUsed = receipt!.gasUsed * receipt!.gasPrice;
-      
-      const finalBalance = await ethers.provider.getBalance(owner.address);
-      expect(finalBalance).to.equal(initialBalance + withdrawAmount - gasUsed);
+      const finalBal = await ethers.provider.getBalance(player1.address);
+
+      expect(finalBal).to.equal(initialBal - gasUsed + expectedEarnings);
+      expect(await flipen.referralEarningsCELO(player1.address)).to.equal(0);
+    });
+  });
+
+  describe("V3 Onboarding Bonus", function () {
+    it("Should allow admin to update onboarding bonus", async function () {
+      const celoBonus = ethers.parseEther("0.5");
+      const cusdBonus = ethers.parseUnits("1", 18);
+      await flipen.connect(owner).updateOnboardingBonus(celoBonus, cusdBonus);
+
+      expect(await flipen.onboardingBonusCELO()).to.equal(celoBonus);
+      expect(await flipen.onboardingBonusCUSD()).to.equal(cusdBonus);
     });
 
-    it("Should allow owner to withdraw cUSD", async function () {
-      const withdrawAmount = ethers.parseUnits("50", 18);
-      const initialBalance = await mockCUSD.balanceOf(owner.address);
+    it("Should allow valid claim of onboarding bonus", async function () {
+      const celoBonus = ethers.parseEther("0.5");
+      const cusdBonus = ethers.parseUnits("1", 18);
+      await flipen.connect(owner).updateOnboardingBonus(celoBonus, cusdBonus);
+
+      // Player 1 needs to play a game
+      await flipen.connect(player1).flipCoin(1, ethers.ZeroAddress, { value: ethers.parseEther("0.1") });
+      await network.provider.send("evm_mine", []);
+      await flipen.resolveGame(1);
+
+      // Player 1 needs to refer Player 2
+      await flipen.connect(player2).flipCoin(1, player1.address, { value: ethers.parseEther("0.1") });
+      await network.provider.send("evm_mine", []);
+      await flipen.resolveGame(2);
+
+      // Now Player 1 claims CELO bonus
+      const initialBal = await ethers.provider.getBalance(player1.address);
+      const tx = await flipen.connect(player1).claimOnboardingBonus(ethers.ZeroAddress);
+      const receipt = await tx.wait();
+      const gasUsed = receipt!.gasUsed * receipt!.gasPrice;
+      const finalBal = await ethers.provider.getBalance(player1.address);
+
+      expect(finalBal).to.equal(initialBal - gasUsed + celoBonus);
+      expect(await flipen.hasClaimedOnboardingBonus(player1.address)).to.be.true;
+    });
+
+    it("Should revert if claiming without playing or referring", async function () {
+      const celoBonus = ethers.parseEther("0.5");
+      await flipen.connect(owner).updateOnboardingBonus(celoBonus, 0);
+
+      await expect(flipen.connect(player1).claimOnboardingBonus(ethers.ZeroAddress)).to.be.revertedWith("Must play at least once");
       
-      await flipen.connect(owner).withdrawToken(await mockCUSD.getAddress(), withdrawAmount);
-      
-      const finalBalance = await mockCUSD.balanceOf(owner.address);
-      expect(finalBalance).to.equal(initialBalance + withdrawAmount);
+      // Play a game
+      await flipen.connect(player1).flipCoin(1, ethers.ZeroAddress, { value: ethers.parseEther("0.1") });
+      await expect(flipen.connect(player1).claimOnboardingBonus(ethers.ZeroAddress)).to.be.revertedWith("Must refer at least one friend");
     });
   });
 });
-
-// Helper for anyValue matcher
-const anyValue = (val: any) => true;

@@ -95,6 +95,14 @@ abstract contract FlipenStorage is Initializable {
     uint256 public currentReferralRewardBP;
 
     mapping(address => uint256) public refereeCount;
+
+    // --- V3 Storage Appended Below ---
+    uint256 public onboardingBonusCELO;
+    uint256 public onboardingBonusCUSD;
+    mapping(address => bool) public hasClaimedOnboardingBonus;
+    
+    event OnboardingBonusUpdated(uint256 celoAmount, uint256 cusdAmount);
+    event OnboardingBonusClaimed(address indexed player, address indexed token, uint256 amount);
     // ---------------------------------
 
     function __FlipenStorage_init() internal onlyInitializing {

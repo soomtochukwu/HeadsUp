@@ -3,6 +3,10 @@ import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
 import "dotenv/config";
 
+const onlinePrivateKey = process.env.ONLINE_PRIVATE_KEY 
+  ? (process.env.ONLINE_PRIVATE_KEY.startsWith("0x") ? process.env.ONLINE_PRIVATE_KEY : `0x${process.env.ONLINE_PRIVATE_KEY}`) 
+  : undefined;
+
 const config: HardhatUserConfig = {
   solidity: {
     compilers: [
@@ -34,12 +38,12 @@ const config: HardhatUserConfig = {
     },
     sepolia: {
       url: "https://forno.celo-sepolia.celo-testnet.org",
-      accounts: process.env.ONLINE_PRIVATE_KEY ? [process.env.ONLINE_PRIVATE_KEY] : [],
+      accounts: onlinePrivateKey ? [onlinePrivateKey] : [],
       chainId: 11142220,
     },
     celo: {
       url: "https://forno.celo.org",
-      accounts: process.env.ONLINE_PRIVATE_KEY ? [process.env.ONLINE_PRIVATE_KEY] : [],
+      accounts: onlinePrivateKey ? [onlinePrivateKey] : [],
       chainId: 42220,
     },
   },
