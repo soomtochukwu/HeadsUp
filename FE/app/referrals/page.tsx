@@ -248,64 +248,76 @@ export default function ReferralsPage() {
           </CardFooter>
         </Card>
 
-        {isBonusActive && (
-          <Card className="bg-card/50 backdrop-blur border-gold/20 flex flex-col md:col-span-2">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl text-gold">🎯 Onboarding Mission</CardTitle>
-              <CardDescription>Complete these steps to unlock your one-time welcome bonus!</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col md:flex-row items-center justify-between gap-6 px-8">
-              <div className="flex-1 space-y-4 w-full">
-                <div className={`p-4 rounded-lg border flex justify-between items-center ${hasPlayed ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-muted/30 border-dashed border-muted text-muted-foreground'}`}>
-                  <span className="font-bold">1. Play Your First Game</span>
-                  {hasPlayed ? <span className="font-black uppercase tracking-widest text-xs">Completed</span> : <span className="text-xs uppercase">Pending</span>}
-                </div>
-                <div className={`p-4 rounded-lg border flex justify-between items-center ${hasReferred ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-muted/30 border-dashed border-muted text-muted-foreground'}`}>
-                  <span className="font-bold">2. Invite Your First Friend</span>
-                  {hasReferred ? <span className="font-black uppercase tracking-widest text-xs">Completed</span> : <span className="text-xs uppercase">Pending</span>}
-                </div>
+        <Card className="bg-card/50 backdrop-blur border-gold/20 flex flex-col md:col-span-2">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl text-gold">🎯 Onboarding Mission</CardTitle>
+            <CardDescription>Complete these steps to unlock your one-time welcome bonus!</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col md:flex-row items-center justify-between gap-6 px-8">
+            <div className="flex-1 space-y-4 w-full">
+              <div className={`p-4 rounded-lg border flex justify-between items-center ${hasPlayed ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-muted/30 border-dashed border-muted text-muted-foreground'}`}>
+                <span className="font-bold">1. Play Your First Game</span>
+                {hasPlayed ? <span className="font-black uppercase tracking-widest text-xs">Completed</span> : <span className="text-xs uppercase">Pending</span>}
               </div>
+              <div className={`p-4 rounded-lg border flex justify-between items-center ${hasReferred ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-muted/30 border-dashed border-muted text-muted-foreground'}`}>
+                <span className="font-bold">2. Invite Your First Friend</span>
+                {hasReferred ? <span className="font-black uppercase tracking-widest text-xs">Completed</span> : <span className="text-xs uppercase">Pending</span>}
+              </div>
+            </div>
 
-              <div className="flex flex-col items-center justify-center space-y-3 min-w-[200px] w-full md:w-auto p-6 bg-black/40 border border-gold/20 rounded-xl">
-                {hasClaimedBonus ? (
-                  <div className="text-center space-y-2">
-                    <div className="text-4xl font-black text-green-400">CLAIMED!</div>
-                    <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Mission Accomplished</p>
+            <div className="flex flex-col items-center justify-center space-y-3 min-w-[200px] w-full md:w-auto p-6 bg-black/40 border border-gold/20 rounded-xl">
+              {hasClaimedBonus ? (
+                <div className="text-center space-y-2">
+                  <div className="text-4xl font-black text-green-400">CLAIMED!</div>
+                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Mission Accomplished</p>
+                </div>
+              ) : (
+                <>
+                  <div className="text-center mb-2">
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Available Bonus</p>
+                    <p className="text-2xl font-black text-gold">
+                      {isBonusActive ? (
+                        <>
+                          {bonusCelo > 0 ? `${bonusCelo} CELO` : ''} 
+                          {bonusCelo > 0 && bonusCusd > 0 ? ' OR ' : ''}
+                          {bonusCusd > 0 ? `${bonusCusd} cUSD` : ''}
+                        </>
+                      ) : (
+                        <span className="text-lg text-muted-foreground">0.00 (Pending Admin)</span>
+                      )}
+                    </p>
                   </div>
-                ) : (
-                  <>
-                    <div className="text-center mb-2">
-                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Available Bonus</p>
-                      <p className="text-2xl font-black text-gold">
-                        {bonusCelo > 0 ? `${bonusCelo} CELO` : ''} 
-                        {bonusCelo > 0 && bonusCusd > 0 ? ' OR ' : ''}
-                        {bonusCusd > 0 ? `${bonusCusd} cUSD` : ''}
-                      </p>
-                    </div>
-                    {bonusCelo > 0 && (
-                      <Button 
-                        disabled={!canClaimBonus || isClaiming}
-                        onClick={() => handleClaimBonus('CELO')}
-                        className="w-full bg-gold hover:bg-gold-dark text-black font-bold"
-                      >
-                        {isClaiming ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Claim CELO'}
-                      </Button>
-                    )}
-                    {bonusCusd > 0 && (
-                      <Button 
-                        disabled={!canClaimBonus || isClaiming}
-                        onClick={() => handleClaimBonus('cUSD')}
-                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
-                      >
-                        {isClaiming ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Claim cUSD'}
-                      </Button>
-                    )}
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                  {isBonusActive ? (
+                    <>
+                      {bonusCelo > 0 && (
+                        <Button 
+                          disabled={!canClaimBonus || isClaiming}
+                          onClick={() => handleClaimBonus('CELO')}
+                          className="w-full bg-gold hover:bg-gold-dark text-black font-bold"
+                        >
+                          {isClaiming ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Claim CELO'}
+                        </Button>
+                      )}
+                      {bonusCusd > 0 && (
+                        <Button 
+                          disabled={!canClaimBonus || isClaiming}
+                          onClick={() => handleClaimBonus('cUSD')}
+                          className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
+                        >
+                          {isClaiming ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Claim cUSD'}
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <Button disabled variant="outline" className="w-full">
+                      Currently Inactive
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="mt-12 text-center text-sm text-muted-foreground space-y-2">
