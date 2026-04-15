@@ -7,11 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import { Coins, Zap, TrendingUp, Sparkles, RotateCcw, Loader2, AlertCircle, ShieldCheck, XCircle, Info } from "lucide-react"
-import { useAccount, useWriteContract, useBalance, useReadContract, usePublicClient } from "wagmi"
+import { useAccount, useWriteContract, useBalance, useReadContract, usePublicClient, useEstimateGas } from "wagmi"
 import { parseEther, parseUnits, formatUnits, decodeEventLog } from "viem"
 import { FLIPEN_ADDRESSES } from "@/contracts/addresses"
 import { toast } from "sonner"
 import Image from "next/image"
+import { isMiniPay } from "@/hooks/useAutoConnect"
 
 // Import ABIs
 import SEPOLIA_ABI from "@/contracts/sepolia-abi.json"
@@ -38,6 +39,11 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
   const [pendingGameId, setPendingGameId] = useState<bigint | null>(null)
   const [gameResult, setGameResult] = useState<{ result: "heads" | "tails", won: boolean, payout: string } | null>(null)
   const [catchTimer, setCatchTimer] = useState(0)
+  const [_isMiniPay, setIsMiniPayEnv] = useState(false)
+
+  useEffect(() => {
+    setIsMiniPayEnv(isMiniPay())
+  }, [])
 
   // Dynamic Resource Selection
   const activeChainId = chainId || 42220
@@ -86,6 +92,20 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
   })
 
   const { writeContractAsync } = useWriteContract()
+  
+  // GAS ESTIMATION
+  const { data: estimatedGas } = useEstimateGas({
+    account: address,
+    to: proxyAddress,
+    value: selectedAsset === "CELO" ? parseEther(betAmount[0].toString()) : undefined,
+    query: { enabled: !!address && !!proxyAddress && !!selectedSide }
+  })
+
+  const networkFee = useMemo(() => {
+    if (!estimatedGas) return "0.0001" // Fallback
+    return parseFloat(formatUnits(estimatedGas, 18)).toFixed(5)
+  }, [estimatedGas])
+
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: cUSDAddress,
     abi: ERC20_ABI,
@@ -137,7 +157,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
     
     // Kind formatting
     let kindMsg = msg
-    if (msg.includes("user rejected")) kindMsg = "Transaction cancelled by user."
+    if (msg.includes("user rejected")) kindMsg = "Transaction cancelled."
     else if (msg.includes("insufficient funds")) kindMsg = "Oops! You don't have enough balance for this bet."
     else if (msg.includes("House bankroll")) kindMsg = "The house bankroll is temporarily too low for this bet."
 
@@ -159,7 +179,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
         args: [gameId],
       })
       
-      toast.info("Revealing coin...", { closeButton: true })
+      toast.info(_isMiniPay ? "Confirming network fee..." : "Revealing coin...", { closeButton: true })
       const receipt = await publicClient.waitForTransactionReceipt({ hash })
       
       let won = false
@@ -256,7 +276,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
         })
       }
 
-      toast.info("Bet placed! Confirming...", { closeButton: true })
+      toast.info(_isMiniPay ? "Confirming network fee..." : "Bet placed! Confirming...", { closeButton: true })
       await publicClient.waitForTransactionReceipt({ hash })
       
       const playerGames = await publicClient.readContract({
@@ -355,14 +375,22 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
                   </div>
                   <span className={`text-[10px] lg:text-sm font-mono font-bold ${canAffordPayout ? 'text-green-400' : 'text-red-400'}`}>{bankroll.toFixed(2)} {selectedAsset}</span>
                 </div>
+
+                <div className="pt-2 flex items-center justify-between opacity-60">
+                  <div className="flex items-center gap-1.5 lg:gap-3">
+                    <Zap className="w-3.5 h-3.5 lg:w-5 lg:h-5 text-gold" />
+                    <span className="text-[10px] lg:text-sm uppercase font-bold text-muted-foreground">Network Fee</span>
+                  </div>
+                  <span className="text-[10px] lg:text-sm font-mono font-bold text-gold">~{networkFee} CELO</span>
+                </div>
               </Card>
             </div>
           )}
 
           {gameState === "WAITING_BLOCK" && (
             <div className="lg:flex-1 flex flex-col justify-center text-center space-y-4 lg:space-y-6 py-8">
-              <div className="text-xl lg:text-3xl font-black text-gold animate-pulse uppercase tracking-tighter">The Oracle is Deciding...</div>
-              <p className="text-muted-foreground text-[10px] lg:text-sm font-bold uppercase tracking-widest px-4 opacity-60">Wait for the block to confirm your destiny</p>
+              <div className="text-xl lg:text-3xl font-black text-gold animate-pulse uppercase tracking-tighter">{_isMiniPay ? "Network Fee Optimized" : "The Oracle is Deciding..."}</div>
+              <p className="text-muted-foreground text-[10px] lg:text-sm font-bold uppercase tracking-widest px-4 opacity-60">{_isMiniPay ? "Transaction ready for signing" : "Wait for the block to confirm your destiny"}</p>
               
               <div className="w-full max-w-sm lg:max-w-md xl:max-w-lg mx-auto">
                 <Button 

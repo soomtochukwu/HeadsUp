@@ -10,14 +10,19 @@ import { formatUnits } from "viem";
 import { FLIPEN_ADDRESSES } from "@/contracts/addresses";
 import MAINNET_ABI from "@/contracts/celo-abi.json";
 import SEPOLIA_ABI from "@/contracts/sepolia-abi.json";
+import { isMiniPay } from "@/hooks/useAutoConnect";
 
 export default function ReferralsPage() {
   const { address, chainId } = useAccount();
   const [mounted, setMounted] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [_isMiniPay, setIsMiniPayEnv] = useState(false);
   const publicClient = usePublicClient();
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    setIsMiniPayEnv(isMiniPay());
+  }, []);
 
   const activeChainId = chainId || 42220;
   const proxyAddress = FLIPEN_ADDRESSES[activeChainId];
@@ -111,7 +116,7 @@ export default function ReferralsPage() {
 
     try {
       setIsClaiming(true);
-      toast.info("Claiming referral rewards...");
+      toast.info(_isMiniPay ? "Confirming network fee..." : "Claiming referral rewards...");
       
       const hash = await writeContractAsync({
         address: proxyAddress,
@@ -138,7 +143,7 @@ export default function ReferralsPage() {
     
     try {
       setIsClaiming(true);
-      toast.info(`Claiming ${tokenSymbol} onboarding bonus...`);
+      toast.info(_isMiniPay ? "Confirming network fee..." : `Claiming ${tokenSymbol} onboarding bonus...`);
       
       const isCelo = tokenSymbol === 'CELO';
       const tokenArg = isCelo ? "0x0000000000000000000000000000000000000000" : FLIPEN_ADDRESSES[activeChainId]; // Need actual cUSD address, but we can fetch it or just use what contract knows. Wait, cUSD is in the contract, I need to pass the cUSD address. For now I'll just use dummy or read it. Let's fix this below if needed. Actually we need the cUSD address.

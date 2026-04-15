@@ -37,6 +37,8 @@ const celoSepolia = {
   testnet: true,
 } as const satisfies Chain;
 
+import { useMiniPay } from "@/hooks/useAutoConnect";
+
 const config = getDefaultConfig({
   appName: "Flipen",
   projectId: "7b4405ad426eb6d4e981a8570a10337c",
@@ -49,6 +51,11 @@ const config = getDefaultConfig({
 });
 
 const queryClient = new QueryClient();
+
+function MiniPayHandler() {
+  useMiniPay();
+  return null;
+}
 
 function ReferralTracker() {
   React.useEffect(() => {
@@ -76,6 +83,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           })}
           modalSize="compact"
         >
+          <MiniPayHandler />
           <ReferralTracker />
           {children}
         </RainbowKitProvider>

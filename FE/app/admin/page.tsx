@@ -13,6 +13,7 @@ import { FLIPEN_ADDRESSES } from "@/contracts/addresses"
 import { toast } from "sonner"
 import { ShieldAlert, ShieldCheck, Wallet, ArrowDownCircle, Settings, Play, Pause, AlertTriangle, RefreshCw, ArrowUpCircle } from "lucide-react"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
+import { isMiniPay } from "@/hooks/useAutoConnect"
 
 const ADMIN_ABI = [
   { "type": "function", "name": "owner", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "address" }] },
@@ -54,6 +55,11 @@ export default function AdminPage() {
   const [bonusCeloInput, setBonusCeloInput] = useState("0")
   const [bonusCusdInput, setBonusCusdInput] = useState("0")
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [_isMiniPay, setIsMiniPayEnv] = useState(false)
+
+  useEffect(() => {
+    setIsMiniPayEnv(isMiniPay())
+  }, [])
 
   const isCorrectChain = useMemo(() => chainId && SUPPORTED_CHAINS.includes(chainId), [chainId])
   const proxyAddress = useMemo(() => chainId ? FLIPEN_ADDRESSES[chainId] : undefined, [chainId])
@@ -133,7 +139,7 @@ export default function AdminPage() {
         args,
         value
       })
-      toast.info("Transaction submitted...")
+      toast.info(_isMiniPay ? "Confirming network fee..." : "Transaction submitted...")
       if (publicClient) await publicClient.waitForTransactionReceipt({ hash })
       toast.success(successMsg)
       // Clear inputs
