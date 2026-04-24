@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Coins, TrendingUp, Trophy, Info, MessageCircle, Sun, Moon, Menu, X, Users } from "lucide-react"
+import { Coins, TrendingUp, Trophy, Info, MessageCircle, Sun, Moon, Menu, X, Users, Zap } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import { useAccount } from 'wagmi'
