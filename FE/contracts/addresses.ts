@@ -1,24 +1,24 @@
 // Auto-generated file - Do not edit manually
-// Generated on: 2026-04-24T12:10:27.094Z
+// Generated on: 2026-04-24T13:23:57.224Z
 
 export const contractAddresses: any = {
   "sepolia": {
     "proxyAddress": "0x5D193eA6E49cC73ae0F3914aD2315789190e5761",
-    "implementationAddress": "0x07B7f38644e44cB1BddAd633C424993347d9f023",
+    "implementationAddress": "0xdF108FFac682dF67de4a59fD0b636ebc3628A43d",
     "deployedAt": "2026-04-03T05:47:08.117Z",
     "deployer": "0x8a371e00cd51E2BE005B86EF73C5Ee9Ef6d23FeB",
     "messengerAddress": "0x1824F5b2b32b059Ba600a0AaD38482Bd5b775CE9",
     "messengerImplementationAddress": "0x8ea76267c2eAD25223B2b2CefEdF5F34D081Dc1A",
-    "lastUpgradedAt": "2026-04-24T12:09:59.039Z"
+    "lastUpgradedAt": "2026-04-24T13:23:26.079Z"
   },
   "celo": {
     "proxyAddress": "0xD6c9912EB6fd064A6B8Bd5786C3cf787806EEdAb",
-    "implementationAddress": "0x50D8fF07334495ba09b4Ac14995Dd2D50a4bB8f1",
+    "implementationAddress": "0x04394C981b33e4fB84fD4eC2bf0A0B859Ef3629e",
     "deployedAt": "2026-04-03T05:47:21.729Z",
     "deployer": "0x8a371e00cd51E2BE005B86EF73C5Ee9Ef6d23FeB",
     "messengerAddress": "0x9a82055d6C4Ad4C33734A22DbCD43FD8aE4bE097",
     "messengerImplementationAddress": "0x664431647b4Bff1bB0626bF77961ca17e233e28A",
-    "lastUpgradedAt": "2026-04-24T12:10:27.094Z"
+    "lastUpgradedAt": "2026-04-24T13:23:57.224Z"
   }
 };
 
