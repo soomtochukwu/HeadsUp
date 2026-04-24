@@ -279,12 +279,12 @@ export default function AdminPage() {
               <Card className="bg-card/80 border-gold/20 shadow-xl lg:col-span-2">
                 <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><ArrowDownCircle className="w-3.5 h-3.5 text-gold" /> Withdraw Profits</CardTitle></CardHeader>
                 <CardContent className="space-y-4 pt-2">
-                  <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex flex-col gap-4">
                     <Input placeholder="0.00" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="bg-background/50 h-12 font-mono text-lg" />
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
-                      <Button variant="outline" className="h-12 font-bold border-gold/30 hover:bg-gold/10" onClick={() => handleAction("withdrawCELO", [parseEther(withdrawAmount)], "CELO withdrawn")}>CELO</Button>
+                    <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                      <Button variant="outline" className="h-10 font-bold border-gold/30 hover:bg-gold/10 text-xs" onClick={() => handleAction("withdrawCELO", [parseEther(withdrawAmount)], "CELO withdrawn")}>CELO</Button>
                       {tokens.map(t => (
-                        <Button key={t.symbol} variant="outline" className="h-12 font-bold border-gold/30 hover:bg-gold/10" onClick={() => handleAction("withdrawToken", [t.address, parseUnits(withdrawAmount, 18)], `${t.symbol} withdrawn`)}>{t.symbol}</Button>
+                        <Button key={t.symbol} variant="outline" className="h-10 font-bold border-gold/30 hover:bg-gold/10 text-xs" onClick={() => handleAction("withdrawToken", [t.address, parseUnits(withdrawAmount, 18)], `${t.symbol} withdrawn`)}>{t.symbol}</Button>
                       ))}
                     </div>
                   </div>
