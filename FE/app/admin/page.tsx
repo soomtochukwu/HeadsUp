@@ -42,6 +42,37 @@ const ERC20_ABI = [
 
 const SUPPORTED_CHAINS = [42220, 11142220]
 
+const ERC20_BALANCE_ABI = [
+  { "type": "function", "name": "balanceOf", "stateMutability": "view", "inputs": [{ "name": "account", "type": "address" }], "outputs": [{ "type": "uint256" }] },
+  { "type": "function", "name": "decimals", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "uint8" }] }
+] as const
+
+const BankrollRow = ({ symbol, tokenAddress, proxyAddress, isCorrectChain }: { symbol: string, tokenAddress: string, proxyAddress?: string, isCorrectChain: boolean }) => {
+  const { data: balance } = useReadContract({
+    address: tokenAddress as `0x${string}`,
+    abi: ERC20_BALANCE_ABI,
+    functionName: 'balanceOf',
+    args: proxyAddress ? [proxyAddress as `0x${string}`] : undefined,
+    query: { enabled: !!proxyAddress && !!isCorrectChain, refetchInterval: 5000 }
+  })
+
+  const { data: decimals } = useReadContract({
+    address: tokenAddress as `0x${string}`,
+    abi: ERC20_BALANCE_ABI,
+    functionName: 'decimals',
+    query: { enabled: !!tokenAddress && !!isCorrectChain, staleTime: Infinity }
+  })
+  
+  return (
+    <div className="flex justify-between items-end">
+      <span className="text-[10px] text-muted-foreground uppercase font-bold">{symbol}</span>
+      <span className="text-2xl font-black text-gold">
+        {balance !== undefined ? parseFloat(formatUnits(balance as bigint, decimals || 18)).toFixed(4) : "---"}
+      </span>
+    </div>
+  )
+}
+
 export default function AdminPage() {
   const { address, isConnected, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
@@ -109,24 +140,16 @@ export default function AdminPage() {
 
   const { data: celoBankroll, refetch: refetchCelo } = useBalance({ address: proxyAddress, chainId: chainId, query: { enabled: !!isCorrectChain && !!proxyAddress, refetchInterval: 5000 } })
 
-  const BankrollRow = ({ symbol, address: tokenAddress }: { symbol: string, address?: string }) => {
-    const { data: balance } = useBalance({ 
-      address: proxyAddress, 
-      token: tokenAddress as `0x${string}`,
-      query: { enabled: !!proxyAddress && !!isCorrectChain, refetchInterval: 5000 } 
-    })
-    
-    return (
-      <div className="flex justify-between items-end">
-        <span className="text-[10px] text-muted-foreground uppercase font-bold">{symbol}</span>
-        <span className="text-2xl font-black text-gold">{balance ? parseFloat(formatUnits(balance.value, balance.decimals)).toFixed(4) : "---"}</span>
-      </div>
-    )
-  }
-
   const tokens = useMemo(() => {
     if (!chainId || !TOKEN_ADDRESSES[chainId]) return []
-    return Object.entries(TOKEN_ADDRESSES[chainId]).map(([symbol, address]) => ({ symbol, address }))
+    const seen = new Set<string>()
+    return Object.entries(TOKEN_ADDRESSES[chainId])
+      .map(([symbol, address]) => ({ symbol, address }))
+      .filter(t => {
+        if (seen.has(t.address.toLowerCase())) return false
+        seen.add(t.address.toLowerCase())
+        return true
+      })
   }, [chainId])
 
   const refreshAllData = useCallback(async () => {
@@ -243,7 +266,15 @@ export default function AdminPage() {
                 <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><Wallet className="w-3.5 h-3.5 text-gold" /> House Bankroll</CardTitle></CardHeader>
                 <CardContent className="space-y-4 max-h-[300px] overflow-y-auto">
                   <div className="flex justify-between items-end"><span className="text-[10px] text-muted-foreground uppercase font-bold">CELO</span><span className="text-2xl font-black text-gold">{celoBankroll ? parseFloat(formatUnits(celoBankroll.value, celoBankroll.decimals)).toFixed(4) : "---"}</span></div>
-                  {tokens.map(t => <BankrollRow key={t.symbol} symbol={t.symbol} address={t.address} />)}
+                  {tokens.map(t => (
+                    <BankrollRow 
+                      key={t.symbol} 
+                      symbol={t.symbol} 
+                      tokenAddress={t.address} 
+                      proxyAddress={proxyAddress} 
+                      isCorrectChain={!!isCorrectChain} 
+                    />
+                  ))}
                 </CardContent>
               </Card>
 
