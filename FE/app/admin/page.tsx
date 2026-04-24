@@ -281,8 +281,11 @@ export default function AdminPage() {
               <Card className="bg-card/80 border-gold/20 shadow-xl">
                 <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><Settings className="w-3.5 h-3.5 text-gold" /> Bet Limits</CardTitle></CardHeader>
                 <CardContent className="space-y-4 pt-2">
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Minimum:</span><span className="font-bold text-gold">{betLimits && Array.isArray(betLimits) ? formatLimit(betLimits[0]) : "0.00"} CELO</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Maximum:</span><span className="font-bold text-gold">{betLimits && Array.isArray(betLimits) ? formatLimit(betLimits[1]) : "0.00"} CELO</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Minimum:</span><span className="font-bold text-gold">{betLimits && Array.isArray(betLimits) ? formatLimit(betLimits[0]) : "0.00"}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Maximum:</span><span className="font-bold text-gold">{betLimits && Array.isArray(betLimits) ? formatLimit(betLimits[1]) : "0.00"}</span></div>
+                  <p className="text-[9px] text-muted-foreground leading-tight italic mt-2 opacity-70">
+                    * Limits apply to the base unit of all assets (CELO, USDm, USDC, etc.) via internal 18-decimal normalization.
+                  </p>
                 </CardContent>
               </Card>
 
