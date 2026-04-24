@@ -297,7 +297,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
       handleError(error, "Flip")
       setGameState("IDLE")
     }
-  }, [selectedSide, address, selectedAsset, betAmount, writeContractAsync, allowance, cUSDAddress, refetchAllowance, publicClient, canAffordPayout, proxyAddress, contractABI, isWithinLimits, formattedMin, formattedMax])
+  }, [selectedSide, address, selectedAsset, betAmount, writeContractAsync, allowance, tokenAddress, refetchAllowance, publicClient, canAffordPayout, proxyAddress, contractABI, isWithinLimits, formattedMin, formattedMax])
 
   return (
     <div className="min-h-0 md:h-full flex flex-col">
