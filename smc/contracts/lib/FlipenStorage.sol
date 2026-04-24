@@ -114,6 +114,7 @@ abstract contract FlipenStorage is Initializable {
     // --- V5 Storage Appended Below ---
     mapping(address => uint256) public totalVolumeToken;
     mapping(address => uint256) public platformFeesToken;
+    mapping(address => uint256) public lockedFundsToken;
     // ---------------------------------
 
     function __FlipenStorage_init() internal onlyInitializing {
