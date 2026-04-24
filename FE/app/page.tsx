@@ -9,11 +9,7 @@ import { CommentsSidebar } from "@/components/comments-sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
 import { useAccount, useBalance, useReadContract } from "wagmi"
 import { formatUnits } from "viem"
-
-const CUSD_CONTRACTS: Record<number, `0x${string}`> = {
-  42220: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
-  11142220: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1",
-}
+import { TOKEN_ADDRESSES } from "@/contracts/addresses"
 
 const MINIMAL_ERC20_ABI = [
   { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] },
@@ -30,14 +26,17 @@ export default function GamePage() {
     query: { enabled: !!address, refetchInterval: 5000 }
   })
 
-  // cUSD Balance (ERC20)
-  const cUSDAddress = chainId ? CUSD_CONTRACTS[chainId] : undefined
-  const { data: cusdBalanceRaw } = useReadContract({
-    address: cUSDAddress,
+  // Selected Token Address
+  const activeChainId = chainId || 42220
+  const tokenAddress = TOKEN_ADDRESSES[activeChainId]?.[selectedAsset]
+
+  // ERC20 Balance
+  const { data: tokenBalanceRaw } = useReadContract({
+    address: tokenAddress,
     abi: MINIMAL_ERC20_ABI,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
-    query: { enabled: !!address && !!cUSDAddress, refetchInterval: 5000 }
+    query: { enabled: !!address && !!tokenAddress, refetchInterval: 5000 }
   })
 
   // Log for debugging
@@ -46,9 +45,10 @@ export default function GamePage() {
       console.log("Flipen Debug - Connected Address:", address);
       console.log("Flipen Debug - Chain ID:", chainId);
       console.log("Flipen Debug - CELO Balance Object:", celoBalance);
-      console.log("Flipen Debug - cUSD Balance Raw:", cusdBalanceRaw);
+      console.log("Flipen Debug - Selected Asset:", selectedAsset);
+      console.log("Flipen Debug - Token Balance Raw:", tokenBalanceRaw);
     }
-  }, [isConnected, address, chainId, celoBalance, cusdBalanceRaw]);
+  }, [isConnected, address, chainId, celoBalance, selectedAsset, tokenBalanceRaw]);
 
   const balance = useMemo(() => {
     try {
@@ -57,15 +57,15 @@ export default function GamePage() {
         const num = parseFloat(formatUnits(celoBalance.value, celoBalance.decimals))
         return isNaN(num) ? "0.0000" : num.toFixed(4)
       } else {
-        if (cusdBalanceRaw === undefined || cusdBalanceRaw === null) return "0.0000"
-        const num = parseFloat(formatUnits(cusdBalanceRaw as bigint, 18))
+        if (tokenBalanceRaw === undefined || tokenBalanceRaw === null) return "0.0000"
+        const num = parseFloat(formatUnits(tokenBalanceRaw as bigint, 18))
         return isNaN(num) ? "0.0000" : num.toFixed(4)
       }
     } catch (error) {
       console.error("Balance Format Error:", error)
       return "0.0000"
     }
-  }, [selectedAsset, celoBalance, cusdBalanceRaw])
+  }, [selectedAsset, celoBalance, tokenBalanceRaw])
 
   return (
     <ThemeProvider defaultTheme="dark" storageKey="golden-flip-theme">
@@ -83,7 +83,7 @@ export default function GamePage() {
                   <GameInterface selectedAsset={selectedAsset} setSelectedAsset={setSelectedAsset} />
                 </div>
                 <div className="flex-shrink-0 lg:col-span-1 md:min-h-0 order-2 lg:order-2">
-                  <StatsPanel />
+                  <StatsPanel selectedAsset={selectedAsset} />
                 </div>
               </div>
             </div>

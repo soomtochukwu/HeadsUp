@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { useAccount, useReadContract, useWriteContract, usePublicClient, useBalance, useSwitchChain } from "wagmi"
 import { parseEther, formatUnits, parseUnits } from "viem"
-import { FLIPEN_ADDRESSES } from "@/contracts/addresses"
+import { FLIPEN_ADDRESSES, TOKEN_ADDRESSES } from "@/contracts/addresses"
 import { toast } from "sonner"
 import { ShieldAlert, ShieldCheck, Wallet, ArrowDownCircle, Settings, Play, Pause, AlertTriangle, RefreshCw, ArrowUpCircle } from "lucide-react"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
@@ -31,7 +31,9 @@ const ADMIN_ABI = [
   { "type": "function", "name": "updateEconomics", "stateMutability": "nonpayable", "inputs": [{ "type": "uint256", "name": "newHouseEdgeBP" }, { "type": "uint256", "name": "newReferralRewardBP" }], "outputs": [] },
   { "type": "function", "name": "onboardingBonusCELO", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "uint256" }] },
   { "type": "function", "name": "onboardingBonusCUSD", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "uint256" }] },
-  { "type": "function", "name": "updateOnboardingBonus", "stateMutability": "nonpayable", "inputs": [{ "type": "uint256", "name": "_celoAmount" }, { "type": "uint256", "name": "_cusdAmount" }], "outputs": [] }
+  { "type": "function", "name": "updateOnboardingBonus", "stateMutability": "nonpayable", "inputs": [{ "type": "uint256", "name": "_celoAmount" }, { "type": "uint256", "name": "_cusdAmount" }], "outputs": [] },
+  { "type": "function", "name": "updateSupportedToken", "stateMutability": "nonpayable", "inputs": [{ "type": "address", "name": "token" }, { "type": "bool", "name": "supported" }], "outputs": [] },
+  { "type": "function", "name": "isSupportedToken", "stateMutability": "view", "inputs": [{ "type": "address", "name": "" }], "outputs": [{ "type": "bool" }] }
 ] as const
 
 const ERC20_ABI = [
@@ -54,6 +56,8 @@ export default function AdminPage() {
   const [referralRewardInput, setReferralRewardInput] = useState("1.0")
   const [bonusCeloInput, setBonusCeloInput] = useState("0")
   const [bonusCusdInput, setBonusCusdInput] = useState("0")
+  const [selectedTokenForAction, setSelectedTokenForAction] = useState("CELO")
+  const [tokenAddressInput, setTokenAddressInput] = useState("")
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [_isMiniPay, setIsMiniPayEnv] = useState(false)
 
@@ -102,15 +106,27 @@ export default function AdminPage() {
     }
   }
 
-  // Balances
   const { data: celoBankroll, refetch: refetchCelo } = useBalance({ address: proxyAddress, chainId: chainId, query: { enabled: !!isCorrectChain && !!proxyAddress, refetchInterval: 5000 } })
-  const { data: cusdBalanceRaw, refetch: refetchCusdBalance } = useReadContract({
-    address: currentCUSD as `0x${string}`,
-    abi: [{ type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] }],
-    functionName: 'balanceOf',
-    args: proxyAddress ? [proxyAddress] : undefined,
-    query: { enabled: !!isCorrectChain && !!currentCUSD && !!proxyAddress, refetchInterval: 5000 }
-  })
+
+  const BankrollRow = ({ symbol, address: tokenAddress }: { symbol: string, address?: string }) => {
+    const { data: balance } = useBalance({ 
+      address: proxyAddress, 
+      token: tokenAddress as `0x${string}`,
+      query: { enabled: !!proxyAddress && !!isCorrectChain, refetchInterval: 5000 } 
+    })
+    
+    return (
+      <div className="flex justify-between items-end">
+        <span className="text-[10px] text-muted-foreground uppercase font-bold">{symbol}</span>
+        <span className="text-2xl font-black text-gold">{balance ? parseFloat(formatUnits(balance.value, balance.decimals)).toFixed(4) : "---"}</span>
+      </div>
+    )
+  }
+
+  const tokens = useMemo(() => {
+    if (!chainId || !TOKEN_ADDRESSES[chainId]) return []
+    return Object.entries(TOKEN_ADDRESSES[chainId]).map(([symbol, address]) => ({ symbol, address }))
+  }, [chainId])
 
   const refreshAllData = useCallback(async () => {
     setIsRefreshing(true)
@@ -123,17 +139,16 @@ export default function AdminPage() {
       refetchReferralReward(),
       refetchBonusCELO(),
       refetchBonusCUSD(),
-      refetchCelo(),
-      refetchCusdBalance()
+      refetchCelo()
     ])
     setTimeout(() => setIsRefreshing(false), 1000)
-  }, [refetchOwner, refetchPaused, refetchLimits, refetchCusdAddr, refetchHouseEdge, refetchReferralReward, refetchBonusCELO, refetchBonusCUSD, refetchCelo, refetchCusdBalance])
+  }, [refetchOwner, refetchPaused, refetchLimits, refetchCusdAddr, refetchHouseEdge, refetchReferralReward, refetchBonusCELO, refetchBonusCUSD, refetchCelo])
 
-  const handleAction = async (fn: string, args: any[], successMsg: string, value?: bigint, abiOverride?: any) => {
+  const handleAction = async (fn: string, args: any[], successMsg: string, value?: bigint, abiOverride?: any, targetAddress?: string) => {
     if (!proxyAddress) return
     try {
       const hash = await writeContractAsync({
-        address: (fn === "transfer" ? currentCUSD : proxyAddress) as `0x${string}`,
+        address: (targetAddress || proxyAddress) as `0x${string}`,
         abi: abiOverride || ADMIN_ABI,
         functionName: fn as any,
         args,
@@ -146,6 +161,7 @@ export default function AdminPage() {
       if (fn === "updateBetLimits") { setMinBetInput(""); setMaxBetInput(""); }
       if (fn === "withdrawCELO" || fn === "withdrawToken") { setWithdrawAmount(""); }
       if (fn === "fundContract" || fn === "transfer") { setFundAmount(""); }
+      if (fn === "updateSupportedToken") { setTokenAddressInput(""); }
       refreshAllData()
     } catch (error: any) {
       toast.error(error.shortMessage || "Transaction failed")
@@ -224,9 +240,9 @@ export default function AdminPage() {
             <div className="container mx-auto grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               <Card className="bg-card/80 border-gold/20 shadow-xl">
                 <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><Wallet className="w-3.5 h-3.5 text-gold" /> House Bankroll</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 max-h-[300px] overflow-y-auto">
                   <div className="flex justify-between items-end"><span className="text-[10px] text-muted-foreground uppercase font-bold">CELO</span><span className="text-2xl font-black text-gold">{celoBankroll ? parseFloat(formatUnits(celoBankroll.value, celoBankroll.decimals)).toFixed(4) : "---"}</span></div>
-                  <div className="flex justify-between items-end"><span className="text-[10px] text-muted-foreground uppercase font-bold">cUSD</span><span className="text-2xl font-black text-gold">{cusdBalanceRaw !== undefined ? parseFloat(formatUnits(cusdBalanceRaw as bigint, 18)).toFixed(4) : "---"}</span></div>
+                  {tokens.map(t => <BankrollRow key={t.symbol} symbol={t.symbol} address={t.address} />)}
                 </CardContent>
               </Card>
 
@@ -250,7 +266,10 @@ export default function AdminPage() {
                     <Input placeholder="0.00" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} className="bg-background/50 h-10 font-mono" />
                     <div className="flex gap-2">
                       <Button className="flex-1 bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30" variant="outline" onClick={() => handleAction("fundContract", [], "Contract funded with CELO", parseEther(fundAmount))}>Fund CELO</Button>
-                      <Button className="flex-1 bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30" variant="outline" onClick={() => proxyAddress && handleAction("transfer", [proxyAddress, parseUnits(fundAmount, 18)], "Contract funded with cUSD", undefined, ERC20_ABI)}>Fund cUSD</Button>
+                      <Button className="flex-1 bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30" variant="outline" onClick={() => {
+                        const token = tokens.find(t => t.symbol === "USDm") || tokens[0]
+                        if (token) handleAction("transfer", [proxyAddress, parseUnits(fundAmount, 18)], `Contract funded with ${token.symbol}`, undefined, ERC20_ABI, token.address)
+                      }}>Fund stable</Button>
                     </div>
                   </div>
                 </CardContent>
@@ -261,9 +280,11 @@ export default function AdminPage() {
                 <CardContent className="space-y-4 pt-2">
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Input placeholder="0.00" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="bg-background/50 h-12 font-mono text-lg" />
-                    <div className="flex gap-2 flex-1">
-                      <Button variant="outline" className="flex-1 h-12 font-bold border-gold/30 hover:bg-gold/10" onClick={() => handleAction("withdrawCELO", [parseEther(withdrawAmount)], "CELO withdrawn")}>CELO</Button>
-                      <Button variant="outline" className="flex-1 h-12 font-bold border-gold/30 hover:bg-gold/10" onClick={() => currentCUSD && handleAction("withdrawToken", [(currentCUSD as string), parseUnits(withdrawAmount, 18)], "cUSD withdrawn")}>cUSD</Button>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
+                      <Button variant="outline" className="h-12 font-bold border-gold/30 hover:bg-gold/10" onClick={() => handleAction("withdrawCELO", [parseEther(withdrawAmount)], "CELO withdrawn")}>CELO</Button>
+                      {tokens.map(t => (
+                        <Button key={t.symbol} variant="outline" className="h-12 font-bold border-gold/30 hover:bg-gold/10" onClick={() => handleAction("withdrawToken", [t.address, parseUnits(withdrawAmount, 18)], `${t.symbol} withdrawn`)}>{t.symbol}</Button>
+                      ))}
                     </div>
                   </div>
                 </CardContent>
@@ -282,6 +303,27 @@ export default function AdminPage() {
                       <Input type="number" step="0.1" value={referralRewardInput} onChange={(e) => handleReferralRewardChange(e.target.value)} className="h-9 text-xs" />
                     </div>
                     <Button size="sm" className="w-full font-bold" onClick={() => handleAction("updateEconomics", [Math.round(parseFloat(houseEdgeInput) * 100), Math.round(parseFloat(referralRewardInput) * 100)], "Economics updated")}>UPDATE ECONOMICS</Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-card/80 border-gold/20 shadow-xl lg:col-span-1">
+                <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><Settings className="w-3.5 h-3.5 text-gold" /> Manage Tokens</CardTitle></CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Token Address</label>
+                      <Input placeholder="0x..." value={tokenAddressInput} onChange={(e) => setTokenAddressInput(e.target.value)} className="h-9 text-xs" />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="flex-1 font-bold" onClick={() => handleAction("updateSupportedToken", [tokenAddressInput, true], "Token supported")}>SUPPORT</Button>
+                      <Button size="sm" variant="destructive" className="flex-1 font-bold" onClick={() => handleAction("updateSupportedToken", [tokenAddressInput, false], "Token unsupported")}>REMOVE</Button>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {tokens.map(t => (
+                        <Badge key={t.symbol} variant="outline" className="cursor-pointer hover:bg-gold/10" onClick={() => setTokenAddressInput(t.address)}>{t.symbol}</Badge>
+                      ))}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

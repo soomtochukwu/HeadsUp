@@ -62,7 +62,7 @@ abstract contract GameLogic is
      * @dev Step 1: Commitment - Place a bet with cUSD or other ERC20
      */
     function flipCoinERC20(uint8 choice, uint256 amount, address token, address referrer) external nonReentrant {
-        require(token == cUSD, "Only cUSD supported for now");
+        require(token == cUSD || isSupportedToken[token], "Token not supported");
         
         // Transfer tokens from player to contract
         require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Token transfer failed");
@@ -174,8 +174,10 @@ abstract contract GameLogic is
             uint256 referralReward = (game.amount * currentReferralRewardBP) / BASIS_POINTS;
             if (game.token == address(0)) {
                 referralEarningsCELO[activeReferrer] += referralReward;
-            } else {
+            } else if (game.token == cUSD) {
                 referralEarningsCUSD[activeReferrer] += referralReward;
+            } else {
+                referralEarningsToken[activeReferrer][game.token] += referralReward;
             }
             emit ReferralRewardAccrued(activeReferrer, game.token, referralReward);
         }

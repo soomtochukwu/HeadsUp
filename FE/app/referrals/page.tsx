@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { toast } from "sonner";
 import { formatUnits } from "viem";
-import { FLIPEN_ADDRESSES } from "@/contracts/addresses";
+import { FLIPEN_ADDRESSES, TOKEN_ADDRESSES } from "@/contracts/addresses";
 import MAINNET_ABI from "@/contracts/celo-abi.json";
 import SEPOLIA_ABI from "@/contracts/sepolia-abi.json";
 import { isMiniPay } from "@/hooks/useAutoConnect";
@@ -27,6 +27,41 @@ export default function ReferralsPage() {
   const activeChainId = chainId || 42220;
   const proxyAddress = FLIPEN_ADDRESSES[activeChainId];
   const contractABI = activeChainId === 42220 ? MAINNET_ABI : SEPOLIA_ABI;
+
+  const tokens = useMemo(() => {
+    if (!activeChainId || !TOKEN_ADDRESSES[activeChainId]) return []
+    return Object.entries(TOKEN_ADDRESSES[activeChainId]).map(([symbol, address]) => ({ symbol, address }))
+  }, [activeChainId])
+
+  const EarningsRow = ({ symbol, address: tokenAddress }: { symbol: string, address: string }) => {
+    const { data: earnings } = useReadContract({
+      address: proxyAddress,
+      abi: contractABI as any,
+      functionName: symbol === "cUSD" || symbol === "USDm" ? "referralEarningsCUSD" : "referralEarningsToken",
+      args: symbol === "cUSD" || symbol === "USDm" ? [address] : [address, tokenAddress],
+      query: { enabled: !!address && !!proxyAddress }
+    })
+
+    const amount = earnings ? Number(formatUnits(earnings as bigint, 18)) : 0
+
+    return (
+      <div className="p-4 bg-muted/20 rounded-lg border border-white/5 flex flex-col items-center justify-center">
+        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">{symbol}</div>
+        <div className="text-xl font-black text-white">{amount.toFixed(2)}</div>
+        {amount > 0 && (
+          <Button 
+            variant="link" 
+            size="sm" 
+            className="h-6 text-[10px] text-gold p-0 mt-1" 
+            onClick={() => handleClaim(tokenAddress, symbol)}
+            disabled={isClaiming}
+          >
+            CLAIM
+          </Button>
+        )}
+      </div>
+    )
+  }
 
   const { data: celoEarningsRaw, refetch: refetchCelo } = useReadContract({
     address: proxyAddress,
@@ -107,28 +142,25 @@ export default function ReferralsPage() {
     toast.success("Referral link copied to clipboard!");
   };
 
-  const handleClaim = async () => {
+  const handleClaim = async (tokenAddr?: string, symbol?: string) => {
     if (!address || !proxyAddress || !publicClient) return;
-    if (totalEarnings === 0) {
-      toast.error("No rewards available to claim.");
-      return;
-    }
 
     try {
       setIsClaiming(true);
-      toast.info(_isMiniPay ? "Confirming network fee..." : "Claiming referral rewards...");
+      toast.info(_isMiniPay ? "Confirming network fee..." : `Claiming ${symbol || 'CELO'} rewards...`);
       
       const hash = await writeContractAsync({
         address: proxyAddress,
         abi: contractABI as any,
         functionName: "claimReferralRewards",
+        args: tokenAddr ? [tokenAddr] : []
       });
 
       await publicClient.waitForTransactionReceipt({ hash });
       
       toast.success("Rewards claimed successfully!");
       refetchCelo();
-      refetchCusd();
+      // Tokens will auto-refresh due to wagmi query keys if using EarningsRow
     } catch (error: any) {
       console.error(error);
       const msg = error.shortMessage || "Failed to claim rewards.";
@@ -223,15 +255,25 @@ export default function ReferralsPage() {
             <CardDescription>Available rewards from your active network.</CardDescription>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col justify-center space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-center">
-              <div className="p-4 bg-muted/20 rounded-lg border border-white/5">
-                <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">CELO</div>
-                <div className="text-3xl font-black text-white">{celoEarnings.toFixed(4)}</div>
+            <div className="grid grid-cols-2 gap-3 text-center">
+              <div className="p-4 bg-muted/20 rounded-lg border border-white/5 flex flex-col items-center justify-center">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">CELO</div>
+                <div className="text-xl font-black text-white">{celoEarnings.toFixed(4)}</div>
+                {celoEarnings > 0 && (
+                  <Button 
+                    variant="link" 
+                    size="sm" 
+                    className="h-6 text-[10px] text-gold p-0 mt-1" 
+                    onClick={() => handleClaim()}
+                    disabled={isClaiming}
+                  >
+                    CLAIM
+                  </Button>
+                )}
               </div>
-              <div className="p-4 bg-muted/20 rounded-lg border border-white/5">
-                <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">cUSD</div>
-                <div className="text-3xl font-black text-green-400">{cusdEarnings.toFixed(2)}</div>
-              </div>
+              {tokens.map(t => (
+                <EarningsRow key={t.symbol} symbol={t.symbol} address={t.address} />
+              ))}
             </div>
             <div className="p-3 bg-gold/5 border border-gold/10 rounded-lg text-center">
               <div className="text-[10px] font-bold text-gold/60 uppercase tracking-[0.2em] mb-1">Total Friends Invited</div>
@@ -240,13 +282,13 @@ export default function ReferralsPage() {
           </CardContent>
           <CardFooter>
             <Button 
-              disabled={!address || totalEarnings === 0 || isClaiming}
-              onClick={handleClaim}
+              disabled={!address || isClaiming}
+              onClick={() => handleClaim()}
               className="w-full h-14 text-lg font-black bg-gradient-to-r from-green-500 to-emerald-700 hover:from-green-400 hover:to-emerald-600 text-white shadow-lg border border-green-400/30"
             >
               {isClaiming ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                 <>
-                  <Sparkles className="w-5 h-5 mr-2" /> CLAIM REWARDS
+                  <Sparkles className="w-5 h-5 mr-2" /> CLAIM ALL REWARDS
                 </>
               )}
             </Button>

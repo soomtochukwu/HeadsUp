@@ -127,7 +127,7 @@ export function Leaderboard() {
                           <span className={`text-sm font-black ${isMVP ? 'text-gold text-base' : ''}`}>
                             {parseFloat(formatUnits(leader.volume, 18)).toFixed(2)}
                           </span>
-                          <span className="text-[9px] text-muted-foreground font-bold tracking-tighter uppercase opacity-60">CELO</span>
+                          <span className="text-[9px] text-muted-foreground font-bold tracking-tighter uppercase opacity-60">Volume (Mixed)</span>
                         </div>
                       </TableCell>
                     </TableRow>

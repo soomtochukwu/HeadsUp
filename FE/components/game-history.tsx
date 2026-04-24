@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ExternalLink, History, Loader2, User, RefreshCcw, ShieldAlert, CheckCircle2 } from "lucide-react"
 import { formatUnits } from "viem"
 import { useFlipenData } from "./data-provider"
+import { getTokenSymbol } from "@/contracts/addresses"
 
 export function GameHistory() {
   const { activities, isSyncing, refresh } = useFlipenData()
@@ -76,7 +77,10 @@ export function GameHistory() {
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <span className="text-xs font-black">{parseFloat(formatUnits(BigInt(act.amount), 18)).toFixed(2)}</span>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-xs font-black">{parseFloat(formatUnits(BigInt(act.amount), 18)).toFixed(2)}</span>
+                        <span className="text-[8px] font-bold text-muted-foreground uppercase opacity-70">{getTokenSymbol(act.chainId, act.token)}</span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex justify-center">
@@ -105,7 +109,10 @@ export function GameHistory() {
                         ) : act.status === 'PENDING' ? (
                           <span className="text-[10px] text-muted-foreground font-bold uppercase animate-pulse tracking-tighter">Waiting...</span>
                         ) : act.won ? (
-                          <span className="text-xs font-black text-green-400 tracking-tighter">+{parseFloat(formatUnits(BigInt(act.payout), 18)).toFixed(2)}</span>
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="text-xs font-black text-green-400 tracking-tighter">+{parseFloat(formatUnits(BigInt(act.payout), 18)).toFixed(2)}</span>
+                            <span className="text-[8px] font-bold text-green-400/70 uppercase">{getTokenSymbol(act.chainId, act.token)}</span>
+                          </div>
                         ) : (
                           <span className="text-[10px] font-black text-red-400/60 uppercase tracking-tighter">Defeat</span>
                         )}

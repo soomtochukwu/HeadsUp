@@ -108,7 +108,43 @@ abstract contract AdminFunctions is
     }
 
     /**
-     * @dev Allows a referrer to claim their accrued rewards (CELO and cUSD)
+     * @dev Update supported ERC20 token
+     */
+    function updateSupportedToken(address token, bool supported) external onlyOwner {
+        require(token != address(0), "Invalid address");
+        isSupportedToken[token] = supported;
+        emit TokenUpdated(token);
+    }
+
+    /**
+     * @dev Allows a referrer to claim their accrued rewards for a specific token
+     */
+    function claimReferralRewards(address token) external whenNotPaused {
+        uint256 amount = 0;
+        
+        if (token == address(0)) {
+            amount = referralEarningsCELO[msg.sender];
+            require(amount > 0, "No CELO rewards");
+            referralEarningsCELO[msg.sender] = 0;
+            (bool success, ) = payable(msg.sender).call{value: amount}("");
+            require(success, "CELO transfer failed");
+        } else if (token == cUSD) {
+            amount = referralEarningsCUSD[msg.sender];
+            require(amount > 0, "No cUSD rewards");
+            referralEarningsCUSD[msg.sender] = 0;
+            require(IERC20(cUSD).transfer(msg.sender, amount), "cUSD transfer failed");
+        } else {
+            amount = referralEarningsToken[msg.sender][token];
+            require(amount > 0, "No token rewards");
+            referralEarningsToken[msg.sender][token] = 0;
+            require(IERC20(token).transfer(msg.sender, amount), "Token transfer failed");
+        }
+
+        emit ReferralRewardClaimed(msg.sender, token, amount);
+    }
+
+    /**
+     * @dev Allows a referrer to claim their accrued rewards (Legacy CELO and cUSD)
      */
     function claimReferralRewards() external whenNotPaused {
         uint256 celoRewards = referralEarningsCELO[msg.sender];
@@ -116,16 +152,9 @@ abstract contract AdminFunctions is
 
         require(celoRewards > 0 || cusdRewards > 0, "No rewards to claim");
 
-        // Reset balances before transfer (Checks-Effects-Interactions)
-        if (celoRewards > 0) {
-            referralEarningsCELO[msg.sender] = 0;
-        }
-        if (cusdRewards > 0) {
-            referralEarningsCUSD[msg.sender] = 0;
-        }
-
         // Transfer CELO
         if (celoRewards > 0) {
+            referralEarningsCELO[msg.sender] = 0;
             (bool success, ) = payable(msg.sender).call{value: celoRewards}("");
             require(success, "CELO transfer failed");
             emit ReferralRewardClaimed(msg.sender, address(0), celoRewards);
@@ -133,8 +162,8 @@ abstract contract AdminFunctions is
 
         // Transfer cUSD
         if (cusdRewards > 0) {
-            bool success = IERC20(cUSD).transfer(msg.sender, cusdRewards);
-            require(success, "cUSD transfer failed");
+            referralEarningsCUSD[msg.sender] = 0;
+            require(IERC20(cUSD).transfer(msg.sender, cusdRewards), "cUSD transfer failed");
             emit ReferralRewardClaimed(msg.sender, cUSD, cusdRewards);
         }
     }
@@ -150,7 +179,7 @@ abstract contract AdminFunctions is
 
     /**
      * @dev Allows users to claim their one-time onboarding bonus
-     * @param token Address of the token to claim (address(0) for CELO, cUSD address for cUSD)
+     * @param token Address of the token to claim (address(0) for CELO, or supported ERC20)
      */
     function claimOnboardingBonus(address token) external whenNotPaused {
         require(!hasClaimedOnboardingBonus[msg.sender], "Already claimed");
@@ -168,16 +197,15 @@ abstract contract AdminFunctions is
             require(success, "CELO transfer failed");
             
             emit OnboardingBonusClaimed(msg.sender, address(0), amountToClaim);
-        } else if (token == cUSD) {
-            amountToClaim = onboardingBonusCUSD;
-            require(amountToClaim > 0, "cUSD bonus not active");
-            require(IERC20(cUSD).balanceOf(address(this)) >= amountToClaim, "Insufficient contract token balance");
+        } else if (token == cUSD || isSupportedToken[token]) {
+            amountToClaim = onboardingBonusCUSD; // Note: Currently we only have one stable bonus amount
+            require(amountToClaim > 0, "Stable bonus not active");
+            require(IERC20(token).balanceOf(address(this)) >= amountToClaim, "Insufficient contract token balance");
             
             hasClaimedOnboardingBonus[msg.sender] = true;
-            bool success = IERC20(cUSD).transfer(msg.sender, amountToClaim);
-            require(success, "cUSD transfer failed");
+            require(IERC20(token).transfer(msg.sender, amountToClaim), "Token transfer failed");
             
-            emit OnboardingBonusClaimed(msg.sender, cUSD, amountToClaim);
+            emit OnboardingBonusClaimed(msg.sender, token, amountToClaim);
         } else {
             revert("Unsupported token");
         }

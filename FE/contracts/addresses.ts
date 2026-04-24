@@ -35,3 +35,31 @@ export const MESSENGER_ADDRESSES: Record<number, `0x${string}`> = {
   42220: "0x9a82055d6C4Ad4C33734A22DbCD43FD8aE4bE097" as `0x${string}`,
   11142220: "0x1824F5b2b32b059Ba600a0AaD38482Bd5b775CE9" as `0x${string}`,
 };
+
+export const TOKEN_ADDRESSES: Record<number, Record<string, `0x${string}`>> = {
+  42220: {
+    "USDm": "0x765DE816845861e75A25fCA122bb6898B8B1282a",
+    "cUSD": "0x765DE816845861e75A25fCA122bb6898B8B1282a",
+    "USDC": "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
+    "USDT": "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
+  },
+  11142220: {
+    "USDm": "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1",
+    "cUSD": "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1",
+    "USDC": "0x01C5C0122039549AD1493B8220cABEdD739BC44E",
+    "USDT": "0xd077A400968890Eacc75cdc901F0356c943e4fDb",
+  }
+};
+
+export const getTokenSymbol = (chainId: number, address: string): string => {
+  if (!address || address === "0x0000000000000000000000000000000000000000") return "CELO";
+  const chainTokens = TOKEN_ADDRESSES[chainId];
+  if (!chainTokens) return "TOKEN";
+  
+  for (const [symbol, addr] of Object.entries(chainTokens)) {
+    if (addr.toLowerCase() === address.toLowerCase()) {
+      return symbol === "cUSD" ? "USDm" : symbol;
+    }
+  }
+  return "ERC20";
+};

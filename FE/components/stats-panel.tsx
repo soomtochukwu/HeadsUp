@@ -5,17 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingUp, Activity, Wallet, RefreshCw } from "lucide-react"
 import { useAccount, useBalance } from "wagmi"
 import { formatUnits } from "viem"
-import { FLIPEN_ADDRESSES } from "@/contracts/addresses"
+import { FLIPEN_ADDRESSES, TOKEN_ADDRESSES } from "@/contracts/addresses"
 import { useFlipenData } from "./data-provider"
 
-export function StatsPanel() {
+export function StatsPanel({ selectedAsset = "CELO" }: { selectedAsset?: string }) {
   const { chainId, isConnected } = useAccount()
   const { totalGames, totalVolume, isSyncing } = useFlipenData()
   const proxyAddress = useMemo(() => chainId ? FLIPEN_ADDRESSES[chainId] : undefined, [chainId])
 
-  // Fetch Live Bankroll (CELO)
+  const activeChainId = chainId || 42220
+  const tokenAddress = selectedAsset === "CELO" ? undefined : TOKEN_ADDRESSES[activeChainId]?.[selectedAsset]
+
+  // Fetch Live Bankroll (Selected Asset)
   const { data: bankroll, isLoading: bankrollLoading } = useBalance({
     address: proxyAddress,
+    token: tokenAddress as `0x${string}`,
     query: {
       enabled: !!proxyAddress,
       refetchInterval: 10000
@@ -36,15 +40,15 @@ export function StatsPanel() {
       color: "text-blue-400",
     },
     {
-      title: "Total Volume",
-      value: isSyncing ? "..." : `${parseFloat(totalVolume).toFixed(2)} CELO`,
+      title: "Mixed Volume",
+      value: isSyncing ? "..." : `${parseFloat(totalVolume).toFixed(2)}+`,
       description: "Wagered on-chain",
       icon: TrendingUp,
       color: "text-green-400",
     },
     {
-      title: "House Bankroll",
-      value: bankrollLoading ? "..." : `${bankrollValue} CELO`,
+      title: `${selectedAsset} Bankroll`,
+      value: bankrollLoading ? "..." : `${bankrollValue}`,
       description: "Available Payouts",
       icon: Wallet,
       color: "text-gold",

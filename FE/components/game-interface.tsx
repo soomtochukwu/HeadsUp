@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Coins, Zap, TrendingUp, Sparkles, RotateCcw, Loader2, AlertCircle, ShieldCheck, XCircle, Info } from "lucide-react"
 import { useAccount, useWriteContract, useBalance, useReadContract, usePublicClient, useEstimateGas } from "wagmi"
 import { parseEther, parseUnits, formatUnits, decodeEventLog } from "viem"
-import { FLIPEN_ADDRESSES } from "@/contracts/addresses"
+import { FLIPEN_ADDRESSES, TOKEN_ADDRESSES } from "@/contracts/addresses"
 import { toast } from "sonner"
 import Image from "next/image"
 import { isMiniPay } from "@/hooks/useAutoConnect"
@@ -17,11 +17,6 @@ import { isMiniPay } from "@/hooks/useAutoConnect"
 // Import ABIs
 import SEPOLIA_ABI from "@/contracts/sepolia-abi.json"
 import MAINNET_ABI from "@/contracts/celo-abi.json"
-
-const CUSD_CONTRACTS: Record<number, `0x${string}`> = {
-  42220: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
-  11142220: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1",
-}
 
 const ERC20_ABI = [
   { "type": "function", "name": "approve", "stateMutability": "nonpayable", "inputs": [{ "type": "address", "name": "spender" }, { "type": "uint256", "name": "amount" }], "outputs": [{ "type": "bool" }] },
@@ -49,7 +44,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
   const activeChainId = chainId || 42220
   const proxyAddress = FLIPEN_ADDRESSES[activeChainId]
   const contractABI = activeChainId === 42220 ? MAINNET_ABI : SEPOLIA_ABI
-  const cUSDAddress = CUSD_CONTRACTS[activeChainId]
+  const tokenAddress = TOKEN_ADDRESSES[activeChainId]?.[selectedAsset]
 
   // READ LIMITS FROM CONTRACT
   const { data: contractLimits } = useReadContract({
@@ -70,12 +65,12 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
 
   // User Balances
   const { data: celoBalance } = useBalance({ address, query: { enabled: !!address, refetchInterval: 10000 } })
-  const { data: cusdBalanceRaw } = useReadContract({
-    address: cUSDAddress,
+  const { data: tokenBalanceRaw } = useReadContract({
+    address: tokenAddress,
     abi: ERC20_ABI,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
-    query: { enabled: !!address && !!cUSDAddress, refetchInterval: 10000 }
+    query: { enabled: !!address && !!tokenAddress, refetchInterval: 10000 }
   })
 
   // CONTRACT BANKROLL
@@ -83,12 +78,12 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
     address: proxyAddress, 
     query: { enabled: !!proxyAddress, refetchInterval: 15000 } 
   })
-  const { data: contractCusdBalanceRaw } = useReadContract({
-    address: cUSDAddress,
+  const { data: contractTokenBalanceRaw } = useReadContract({
+    address: tokenAddress,
     abi: ERC20_ABI,
     functionName: 'balanceOf',
     args: proxyAddress ? [proxyAddress] : undefined,
-    query: { enabled: !!cUSDAddress && !!proxyAddress, refetchInterval: 15000 }
+    query: { enabled: !!tokenAddress && !!proxyAddress, refetchInterval: 15000 }
   })
 
   const { writeContractAsync } = useWriteContract()
@@ -107,11 +102,11 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
   }, [estimatedGas])
 
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
-    address: cUSDAddress,
+    address: tokenAddress,
     abi: ERC20_ABI,
     functionName: "allowance",
     args: address && proxyAddress ? [address, proxyAddress] : undefined,
-    query: { enabled: !!address && !!cUSDAddress && !!proxyAddress && selectedAsset === "cUSD" }
+    query: { enabled: !!address && !!tokenAddress && !!proxyAddress && selectedAsset !== "CELO" }
   })
 
   const formatValue = (val: any, decimals = 18) => {
@@ -122,8 +117,8 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
 
   const bankroll = useMemo(() => {
     if (selectedAsset === "CELO") return formatValue(contractCeloBalance)
-    return formatValue(contractCusdBalanceRaw)
-  }, [selectedAsset, contractCeloBalance, contractCusdBalanceRaw])
+    return formatValue(contractTokenBalanceRaw)
+  }, [selectedAsset, contractCeloBalance, contractTokenBalanceRaw])
 
   const canAffordPayout = useMemo(() => {
     const potentialPayout = betAmount[0] * 1.95
@@ -134,11 +129,19 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
 
   const currentAssets = useMemo(() => {
     const formatStr = (val: any, dec = 18) => formatValue(val, dec).toFixed(4)
-    return [
-      { symbol: "CELO", name: "Celo", icon: "◊", balance: formatStr(celoBalance), network: chain?.name || "Celo" },
-      { symbol: "cUSD", name: "Celo Dollar", icon: "$", balance: formatStr(cusdBalanceRaw), network: chain?.name || "Celo", address: cUSDAddress },
+    const availableTokens = TOKEN_ADDRESSES[activeChainId] || {}
+    
+    const assets = [
+      { symbol: "CELO", name: "Celo", icon: "◊", balance: formatStr(celoBalance), network: chain?.name || "Celo" }
     ]
-  }, [celoBalance, cusdBalanceRaw, chain, cUSDAddress])
+
+    // Only add tokens that have addresses for the current chain
+    if (availableTokens["USDm"]) assets.push({ symbol: "USDm", name: "USD Mento", icon: "$", balance: formatStr(tokenBalanceRaw), network: chain?.name || "Celo", address: availableTokens["USDm"] })
+    if (availableTokens["USDC"]) assets.push({ symbol: "USDC", name: "USDC Native", icon: "Ⓒ", balance: formatStr(tokenBalanceRaw), network: chain?.name || "Celo", address: availableTokens["USDC"] })
+    if (availableTokens["USDT"]) assets.push({ symbol: "USDT", name: "Tether", icon: "₮", balance: formatStr(tokenBalanceRaw), network: chain?.name || "Celo", address: availableTokens["USDT"] })
+
+    return assets
+  }, [celoBalance, tokenBalanceRaw, chain, activeChainId, selectedAsset])
 
   const currentAsset = currentAssets.find(asset => asset.symbol === selectedAsset) || currentAssets[0]
 
@@ -258,9 +261,9 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
       } else {
         const amount = parseUnits(betAmount[0].toString(), 18)
         if (!allowance || (allowance as bigint) < amount) {
-          toast.info("Approving cUSD...", { closeButton: true })
+          toast.info(`Approving ${selectedAsset}...`, { closeButton: true })
           await writeContractAsync({
-            address: cUSDAddress!,
+            address: tokenAddress!,
             abi: ERC20_ABI,
             functionName: "approve",
             args: [proxyAddress, amount],
@@ -272,7 +275,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
           address: proxyAddress,
           abi: contractABI as any,
           functionName: "flipCoinERC20",
-          args: [choice, amount, cUSDAddress!, referrerAddress],
+          args: [choice, amount, tokenAddress!, referrerAddress],
         })
       }
 

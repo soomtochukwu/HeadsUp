@@ -105,6 +105,11 @@ abstract contract FlipenStorage is Initializable {
     event OnboardingBonusClaimed(address indexed player, address indexed token, uint256 amount);
     // ---------------------------------
 
+    // --- V4 Storage Appended Below ---
+    mapping(address => bool) public isSupportedToken;
+    mapping(address => mapping(address => uint256)) public referralEarningsToken;
+    // ---------------------------------
+
     function __FlipenStorage_init() internal onlyInitializing {
         minBetAmount = 0.01 ether; 
         maxBetAmount = 100 ether; 
