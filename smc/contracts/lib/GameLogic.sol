@@ -129,7 +129,11 @@ abstract contract GameLogic is
 
         playerGames[msg.sender].push(gameId);
         totalGamesPlayed++;
-        totalVolume += amount;
+        totalVolumeToken[token] += amount;
+        // Backward compatibility for totalVolume (deprecated but kept for now)
+        if (token == address(0) || token == cUSD) {
+            totalVolume += amount;
+        }
 
         emit GameRequested(gameId, msg.sender, amount, choice, block.number, token, referrers[msg.sender]);
     }
@@ -233,7 +237,29 @@ abstract contract GameLogic is
     }
 
     /**
-     * @dev Get contract statistics
+     * @dev Get contract statistics for a specific token
+     */
+    function getContractStats(address token)
+        external
+        view
+        returns (
+            uint256 totalGames,
+            uint256 volume,
+            uint256 balance,
+            uint256 fees
+        )
+    {
+        uint256 currentBalance = token == address(0) ? address(this).balance : IERC20(token).balanceOf(address(this));
+        return (
+            totalGamesPlayed,
+            totalVolumeToken[token],
+            currentBalance,
+            platformFeesToken[token]
+        );
+    }
+
+    /**
+     * @dev Get contract statistics (Legacy CELO version)
      */
     function getContractStats()
         external
@@ -247,9 +273,9 @@ abstract contract GameLogic is
     {
         return (
             totalGamesPlayed,
-            totalVolume,
+            totalVolumeToken[address(0)],
             address(this).balance,
-            0
+            platformFeesToken[address(0)]
         );
     }
 
