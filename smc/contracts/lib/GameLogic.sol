@@ -130,10 +130,9 @@ abstract contract GameLogic is
         playerGames[msg.sender].push(gameId);
         totalGamesPlayed++;
         totalVolumeToken[token] += amount;
-        // Backward compatibility for totalVolume (deprecated but kept for now)
-        if (token == address(0) || token == cUSD) {
-            totalVolume += amount;
-        }
+        
+        // Keep aggregated mixed volume in 18-decimal standard
+        totalVolume += _getNormalizedAmount(amount, token);
 
         emit GameRequested(gameId, msg.sender, amount, choice, block.number, token, referrers[msg.sender]);
     }
@@ -273,7 +272,7 @@ abstract contract GameLogic is
     {
         return (
             totalGamesPlayed,
-            totalVolumeToken[address(0)],
+            totalVolume,
             address(this).balance,
             platformFeesToken[address(0)]
         );
