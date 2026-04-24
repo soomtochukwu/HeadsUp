@@ -8,14 +8,51 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ExternalLink, History, Loader2, User, RefreshCcw, ShieldAlert, CheckCircle2 } from "lucide-react"
 import { formatUnits } from "viem"
 import { useFlipenData } from "./data-provider"
-import { getTokenSymbol } from "@/contracts/addresses"
+import { getTokenSymbol, FLIPEN_ADDRESSES } from "@/contracts/addresses"
+import { useAccount, useWriteContract, usePublicClient, useBlockNumber } from "wagmi"
+import MAINNET_ABI from "@/contracts/celo-abi.json"
+import SEPOLIA_ABI from "@/contracts/sepolia-abi.json"
+import { toast } from "sonner"
+import { useState } from "react"
 
 export function GameHistory() {
   const { activities, isSyncing, refresh } = useFlipenData()
+  const { address, chainId } = useAccount()
+  const { data: currentBlock } = useBlockNumber({ watch: true })
+  const { writeContractAsync } = useWriteContract()
+  const publicClient = usePublicClient()
+  const [isActioning, setIsActioning] = useState<string | null>(null)
+
+  const activeChainId = chainId || 42220
+  const proxyAddress = FLIPEN_ADDRESSES[activeChainId]
+  const contractABI = activeChainId === 42220 ? MAINNET_ABI : SEPOLIA_ABI
 
   const sortedActivities = useMemo(() => {
     return [...activities].sort((a, b) => b.blockNumber - a.blockNumber)
   }, [activities])
+
+  const handleAction = async (requestId: string, type: 'CATCH' | 'RECLAIM') => {
+    if (!proxyAddress || !publicClient) return
+    setIsActioning(requestId)
+    try {
+      const fn = type === 'CATCH' ? "resolveGame" : "cancelGame"
+      const hash = await writeContractAsync({
+        address: proxyAddress,
+        abi: contractABI as any,
+        functionName: fn,
+        args: [BigInt(requestId)]
+      })
+      
+      toast.info(`Transaction submitted: ${type}...`)
+      await publicClient.waitForTransactionReceipt({ hash })
+      toast.success(`${type} successful!`)
+      refresh()
+    } catch (e: any) {
+      toast.error(e.shortMessage || `${type} failed`)
+    } finally {
+      setIsActioning(null)
+    }
+  }
 
   return (
     <Card className="bg-card/80 backdrop-blur-sm border-gold/10 shadow-2xl">
@@ -107,7 +144,34 @@ export function GameHistory() {
                         {act.status === 'FAILED' ? (
                           <span className="text-[10px] text-red-400 font-bold uppercase tracking-tighter">Gas Wasted</span>
                         ) : act.status === 'PENDING' ? (
-                          <span className="text-[10px] text-muted-foreground font-bold uppercase animate-pulse tracking-tighter">Waiting...</span>
+                          <div className="flex flex-col items-end gap-1.5">
+                            {address?.toLowerCase() === act.player.toLowerCase() ? (
+                              <>
+                                {currentBlock && BigInt(currentBlock) > BigInt(act.blockNumber) + BigInt(250) ? (
+                                  <Button 
+                                    size="sm" 
+                                    variant="destructive" 
+                                    className="h-7 text-[10px] font-black px-3"
+                                    onClick={() => handleAction(act.requestId, 'RECLAIM')}
+                                    disabled={!!isActioning}
+                                  >
+                                    {isActioning === act.requestId ? <Loader2 className="w-3 h-3 animate-spin" /> : "RECLAIM"}
+                                  </Button>
+                                ) : (
+                                  <Button 
+                                    size="sm" 
+                                    className="h-7 bg-green-600 hover:bg-green-500 text-white text-[10px] font-black px-3"
+                                    onClick={() => handleAction(act.requestId, 'CATCH')}
+                                    disabled={!!isActioning}
+                                  >
+                                    {isActioning === act.requestId ? <Loader2 className="w-3 h-3 animate-spin" /> : "CATCH"}
+                                  </Button>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground font-bold uppercase animate-pulse tracking-tighter">Flipping...</span>
+                            )}
+                          </div>
                         ) : act.won ? (
                           <div className="flex flex-col items-end gap-0.5">
                             <span className="text-xs font-black text-green-400 tracking-tighter">+{parseFloat(formatUnits(BigInt(act.payout), 18)).toFixed(2)}</span>

@@ -8,6 +8,7 @@ import { Coins, TrendingUp, Trophy, Info, MessageCircle, Sun, Moon, Menu, X, Use
 import { useTheme } from "@/components/theme-provider"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import { useAccount } from 'wagmi'
+import { usePendingGames } from "@/hooks/usePendingGames"
 
 interface HeaderProps {
   balance: string
@@ -25,6 +26,7 @@ export function Header({
   const router = useRouter()
   const pathname = usePathname()
   const { isConnected } = useAccount()
+  const { pendingCount } = usePendingGames()
 
   const tabs = [
     { id: "game", label: "Game", icon: Coins, href: "/" },
@@ -143,6 +145,16 @@ export function Header({
 
             {/* Desktop Right Side */}
             <div className="hidden lg:flex items-center space-x-3">
+              {/* Reminder for Pending Flips */}
+              {isConnected && pendingCount > 0 && (
+                <Link href="/history">
+                  <div className="flex items-center gap-2 bg-red-500/20 border border-red-500/30 px-3 py-1 rounded-full animate-pulse cursor-pointer hover:bg-red-500/30 transition-colors">
+                    <Zap className="w-3 h-3 text-red-400" />
+                    <span className="text-[10px] font-bold text-red-400 uppercase tracking-tighter">{pendingCount} Action Required</span>
+                  </div>
+                </Link>
+              )}
+
               {/* Custom Balance Display (Only when connected) */}
               {isConnected && (
                 <div className="hidden xl:flex items-center space-x-2 bg-gold/10 border border-gold/30 rounded-full px-3 py-1">
@@ -215,6 +227,19 @@ export function Header({
 
           {/* Navigation Items */}
           <div className="flex-1 p-4 space-y-2">
+            {/* Reminder for Pending Flips (Mobile) */}
+            {isConnected && pendingCount > 0 && (
+              <Link href="/history" onClick={() => setIsMobileSidebarOpen(false)}>
+                <div className="flex items-center justify-between gap-2 bg-red-500/10 border border-red-500/20 px-4 py-3 rounded-xl mb-4 animate-pulse">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-red-500" />
+                    <span className="text-sm font-bold text-red-500 uppercase tracking-tight">{pendingCount} Action Required</span>
+                  </div>
+                  <TrendingUp className="w-4 h-4 text-red-500" />
+                </div>
+              </Link>
+            )}
+
             {/* Balance Card Mobile */}
             {isConnected && (
               <div className="bg-gold/10 border border-gold/30 rounded-xl p-4 mb-4 text-center">
