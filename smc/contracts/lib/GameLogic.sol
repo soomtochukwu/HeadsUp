@@ -130,6 +130,7 @@ abstract contract GameLogic is
         playerGames[msg.sender].push(gameId);
         totalGamesPlayed++;
         totalVolumeToken[token] += amount;
+        lockedFundsToken[token] += amount;
         
         // Keep aggregated mixed volume in 18-decimal standard
         totalVolume += _getNormalizedAmount(amount, token);
@@ -150,6 +151,7 @@ abstract contract GameLogic is
         // Anti-manipulation: Must resolve within 250 blocks
         if (block.number > game.commitBlock + BLOCK_EXPIRATION) {
             game.status = GameStatus.EXPIRED;
+            lockedFundsToken[game.token] -= game.amount;
             emit GameCompleted(gameId, game.player, false, 0, game.token);
             return;
         }
@@ -173,6 +175,7 @@ abstract contract GameLogic is
         game.coinResult = coinResult;
         game.won = won;
         game.status = GameStatus.FULFILLED;
+        lockedFundsToken[game.token] -= game.amount;
 
         // Referral Reward Accrual (happens regardless of win/loss)
         address activeReferrer = referrers[game.player];
@@ -215,6 +218,32 @@ abstract contract GameLogic is
         );
         
         emit GameCompleted(gameId, game.player, won, payout, game.token);
+    }
+
+    /**
+     * @dev Step 1.5: Cancellation - Reclaim funds if game is stuck and entropy expired
+     */
+    function cancelGame(uint256 gameId) external nonReentrant {
+        GameRequest storage game = gameRequests[gameId];
+        
+        require(game.player == msg.sender, "Only player can cancel");
+        require(game.status == GameStatus.PENDING, "Game not pending");
+        require(block.number > game.commitBlock + BLOCK_EXPIRATION, "Entropy not yet expired");
+
+        game.status = GameStatus.CANCELLED;
+        uint256 amount = game.amount;
+        address token = game.token;
+        
+        lockedFundsToken[token] -= amount;
+
+        if (token == address(0)) {
+            (bool success, ) = payable(msg.sender).call{value: amount}("");
+            require(success, "CELO refund failed");
+        } else {
+            require(IERC20(token).transfer(msg.sender, amount), "Token refund failed");
+        }
+
+        emit GameCompleted(gameId, msg.sender, false, amount, token);
     }
 
     /**
