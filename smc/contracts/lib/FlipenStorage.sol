@@ -111,6 +111,11 @@ abstract contract FlipenStorage is Initializable {
     mapping(address => uint8) public tokenDecimals;
     // ---------------------------------
 
+    // --- V5 Storage Appended Below ---
+    mapping(address => uint256) public totalVolumeToken;
+    mapping(address => uint256) public platformFeesToken;
+    // ---------------------------------
+
     function __FlipenStorage_init() internal onlyInitializing {
         minBetAmount = 0.01 ether; 
         maxBetAmount = 100 ether; 
