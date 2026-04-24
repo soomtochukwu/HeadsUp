@@ -122,6 +122,44 @@ abstract contract AdminFunctions is
      */
     function claimReferralRewards(address token) external whenNotPaused {
         uint256 amount = 0;
+
+        if (token == address(0)) {
+            amount = referralEarningsCELO[msg.sender];
+            require(amount > 0, "No CELO rewards");
+            referralEarningsCELO[msg.sender] = 0;
+            (bool success, ) = payable(msg.sender).call{value: amount}("");
+            require(success, "CELO transfer failed");
+        } else if (token == cUSD) {
+            amount = referralEarningsCUSD[msg.sender];
+            require(amount > 0, "No cUSD rewards");
+            referralEarningsCUSD[msg.sender] = 0;
+            require(IERC20(cUSD).transfer(msg.sender, amount), "cUSD transfer failed");
+        } else {
+            amount = referralEarningsToken[msg.sender][token];
+            require(amount > 0, "No token rewards");
+            referralEarningsToken[msg.sender][token] = 0;
+            require(IERC20(token).transfer(msg.sender, amount), "Token transfer failed");
+        }
+
+        emit ReferralRewardClaimed(msg.sender, token, amount);
+    }
+
+    /**
+     * @dev Allows a referrer to claim their accrued rewards (Legacy CELO and cUSD)
+
+     */
+    function updateSupportedToken(address token, bool supported, uint8 decimals) external onlyOwner {
+        require(token != address(0), "Invalid address");
+        isSupportedToken[token] = supported;
+        tokenDecimals[token] = decimals;
+        emit TokenUpdated(token);
+    }
+
+    /**
+     * @dev Allows a referrer to claim their accrued rewards for a specific token
+     */
+    function claimReferralRewards(address token) external whenNotPaused {
+        uint256 amount = 0;
         
         if (token == address(0)) {
             amount = referralEarningsCELO[msg.sender];
