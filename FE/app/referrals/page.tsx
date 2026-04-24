@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAccount, useReadContract, useWriteContract, usePublicClient } from "wagmi";
 import { Copy, Users, Coins, ArrowRightLeft, Loader2, Sparkles, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";

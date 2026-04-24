@@ -110,9 +110,10 @@ abstract contract AdminFunctions is
     /**
      * @dev Update supported ERC20 token
      */
-    function updateSupportedToken(address token, bool supported) external onlyOwner {
+    function updateSupportedToken(address token, bool supported, uint8 decimals) external onlyOwner {
         require(token != address(0), "Invalid address");
         isSupportedToken[token] = supported;
+        tokenDecimals[token] = decimals;
         emit TokenUpdated(token);
     }
 
@@ -198,7 +199,17 @@ abstract contract AdminFunctions is
             
             emit OnboardingBonusClaimed(msg.sender, address(0), amountToClaim);
         } else if (token == cUSD || isSupportedToken[token]) {
-            amountToClaim = onboardingBonusCUSD; // Note: Currently we only have one stable bonus amount
+            uint8 decimals = token == cUSD ? 18 : tokenDecimals[token];
+            if (decimals == 0) decimals = 18; // Default to 18 if not set
+
+            // We need to scale onboardingBonusCUSD (which is in 18 decimals) to token decimals
+            amountToClaim = onboardingBonusCUSD;
+            if (decimals < 18) {
+                amountToClaim = amountToClaim / (10 ** (18 - decimals));
+            } else if (decimals > 18) {
+                amountToClaim = amountToClaim * (10 ** (decimals - 18));
+            }
+
             require(amountToClaim > 0, "Stable bonus not active");
             require(IERC20(token).balanceOf(address(this)) >= amountToClaim, "Insufficient contract token balance");
             

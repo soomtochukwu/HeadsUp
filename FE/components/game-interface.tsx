@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import { Coins, Zap, TrendingUp, Sparkles, RotateCcw, Loader2, AlertCircle, ShieldCheck, XCircle, Info } from "lucide-react"
 import { useAccount, useWriteContract, useBalance, useReadContract, usePublicClient, useEstimateGas } from "wagmi"
-import { parseEther, parseUnits, formatUnits, decodeEventLog } from "viem"
+import { parseEther, parseUnits, formatUnits, decodeEventLog, encodeFunctionData } from "viem"
 import { FLIPEN_ADDRESSES, TOKEN_ADDRESSES } from "@/contracts/addresses"
 import { toast } from "sonner"
 import Image from "next/image"
@@ -45,6 +45,20 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
   const proxyAddress = FLIPEN_ADDRESSES[activeChainId]
   const contractABI = activeChainId === 42220 ? MAINNET_ABI : SEPOLIA_ABI
   const tokenAddress = TOKEN_ADDRESSES[activeChainId]?.[selectedAsset]
+
+  // READ TOKEN DECIMALS
+  const { data: tokenDecimals } = useReadContract({
+    address: proxyAddress,
+    abi: contractABI as any,
+    functionName: 'tokenDecimals',
+    args: tokenAddress ? [tokenAddress] : undefined,
+    query: { enabled: !!proxyAddress && !!tokenAddress && selectedAsset !== "CELO" }
+  })
+
+  const decimals = useMemo(() => {
+    if (selectedAsset === "CELO") return 18
+    return (tokenDecimals as number) || 18
+  }, [selectedAsset, tokenDecimals])
 
   // READ LIMITS FROM CONTRACT
   const { data: contractLimits } = useReadContract({
@@ -89,10 +103,32 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
   const { writeContractAsync } = useWriteContract()
   
   // GAS ESTIMATION
+  const gasEstimateData = useMemo(() => {
+    if (!selectedSide || !proxyAddress) return undefined;
+    const choice = selectedSide === "tails" ? 0 : 1;
+    const referrerAddress = "0x0000000000000000000000000000000000000000"; // Dummy for estimation
+    
+    if (selectedAsset === "CELO") {
+      return encodeFunctionData({
+        abi: contractABI,
+        functionName: "flipCoin",
+        args: [choice, referrerAddress]
+      });
+    } else {
+      const amount = parseUnits(betAmount[0].toString(), decimals);
+      return encodeFunctionData({
+        abi: contractABI,
+        functionName: "flipCoinERC20",
+        args: [choice, amount, tokenAddress!, referrerAddress]
+      });
+    }
+  }, [selectedSide, selectedAsset, betAmount, decimals, tokenAddress, contractABI, proxyAddress]);
+
   const { data: estimatedGas } = useEstimateGas({
     account: address,
     to: proxyAddress,
     value: selectedAsset === "CELO" ? parseEther(betAmount[0].toString()) : undefined,
+    data: gasEstimateData,
     query: { enabled: !!address && !!proxyAddress && !!selectedSide }
   })
 
@@ -109,16 +145,16 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
     query: { enabled: !!address && !!tokenAddress && !!proxyAddress && selectedAsset !== "CELO" }
   })
 
-  const formatValue = (val: any, decimals = 18) => {
+  const formatValue = (val: any, dec = 18) => {
     if (val === undefined || val === null) return 0
     if (typeof val === 'object' && val.value !== undefined) return parseFloat(formatUnits(val.value, val.decimals))
-    return parseFloat(formatUnits(val as bigint, decimals))
+    return parseFloat(formatUnits(val as bigint, dec))
   }
 
   const bankroll = useMemo(() => {
     if (selectedAsset === "CELO") return formatValue(contractCeloBalance)
-    return formatValue(contractTokenBalanceRaw)
-  }, [selectedAsset, contractCeloBalance, contractTokenBalanceRaw])
+    return formatValue(contractTokenBalanceRaw, decimals)
+  }, [selectedAsset, contractCeloBalance, contractTokenBalanceRaw, decimals])
 
   const canAffordPayout = useMemo(() => {
     const potentialPayout = betAmount[0] * 1.95
@@ -259,7 +295,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
           value: parseEther(betAmount[0].toString()),
         })
       } else {
-        const amount = parseUnits(betAmount[0].toString(), 18)
+        const amount = parseUnits(betAmount[0].toString(), decimals)
         if (!allowance || (allowance as bigint) < amount) {
           toast.info(`Approving ${selectedAsset}...`, { closeButton: true })
           await writeContractAsync({
@@ -297,7 +333,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
       handleError(error, "Flip")
       setGameState("IDLE")
     }
-  }, [selectedSide, address, selectedAsset, betAmount, writeContractAsync, allowance, tokenAddress, refetchAllowance, publicClient, canAffordPayout, proxyAddress, contractABI, isWithinLimits, formattedMin, formattedMax])
+  }, [selectedSide, address, selectedAsset, betAmount, writeContractAsync, allowance, tokenAddress, refetchAllowance, publicClient, canAffordPayout, proxyAddress, contractABI, isWithinLimits, formattedMin, formattedMax, decimals])
 
   return (
     <div className="min-h-0 md:h-full flex flex-col">

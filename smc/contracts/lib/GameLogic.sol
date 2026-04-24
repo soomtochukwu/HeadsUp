@@ -78,8 +78,11 @@ abstract contract GameLogic is
             choice == 0 || choice == 1,
             "Invalid choice: must be 0 (tails) or 1 (heads)"
         );
-        require(amount >= minBetAmount, "Bet amount too low");
-        require(amount <= maxBetAmount, "Bet amount too high");
+
+        // Normalize amount to 18 decimals for limit checks
+        uint256 normalizedAmount = _getNormalizedAmount(amount, token);
+        require(normalizedAmount >= minBetAmount, "Bet amount too low");
+        require(normalizedAmount <= maxBetAmount, "Bet amount too high");
         
         // Dynamic payout calculation based on current house edge
         // House Edge of 2.5% (250) means a payout of 1.95x (19500)
@@ -248,5 +251,25 @@ abstract contract GameLogic is
             address(this).balance,
             0
         );
+    }
+
+    /**
+     * @dev Normalize amount to 18 decimals
+     */
+    function _getNormalizedAmount(uint256 amount, address token) internal view returns (uint256) {
+        if (token == address(0)) return amount; // CELO is 18 decimals
+        
+        uint8 decimals = tokenDecimals[token];
+        if (decimals == 0) {
+            // Default to 18 if not set (for cUSD or unset tokens)
+            return amount;
+        }
+        
+        if (decimals < 18) {
+            return amount * (10 ** (18 - decimals));
+        } else if (decimals > 18) {
+            return amount / (10 ** (decimals - 18));
+        }
+        return amount;
     }
 }

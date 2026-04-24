@@ -58,6 +58,7 @@ export default function AdminPage() {
   const [bonusCusdInput, setBonusCusdInput] = useState("0")
   const [selectedTokenForAction, setSelectedTokenForAction] = useState("CELO")
   const [tokenAddressInput, setTokenAddressInput] = useState("")
+  const [tokenDecimalsInput, setTokenDecimalsInput] = useState("18")
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [_isMiniPay, setIsMiniPayEnv] = useState(false)
 
@@ -315,9 +316,13 @@ export default function AdminPage() {
                       <label className="text-xs text-muted-foreground">Token Address</label>
                       <Input placeholder="0x..." value={tokenAddressInput} onChange={(e) => setTokenAddressInput(e.target.value)} className="h-9 text-xs" />
                     </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Decimals</label>
+                      <Input type="number" value={tokenDecimalsInput} onChange={(e) => setTokenDecimalsInput(e.target.value)} className="h-9 text-xs" />
+                    </div>
                     <div className="flex gap-2">
-                      <Button size="sm" className="flex-1 font-bold" onClick={() => handleAction("updateSupportedToken", [tokenAddressInput, true], "Token supported")}>SUPPORT</Button>
-                      <Button size="sm" variant="destructive" className="flex-1 font-bold" onClick={() => handleAction("updateSupportedToken", [tokenAddressInput, false], "Token unsupported")}>REMOVE</Button>
+                      <Button size="sm" className="flex-1 font-bold" onClick={() => handleAction("updateSupportedToken", [tokenAddressInput, true, parseInt(tokenDecimalsInput)], "Token supported")}>SUPPORT</Button>
+                      <Button size="sm" variant="destructive" className="flex-1 font-bold" onClick={() => handleAction("updateSupportedToken", [tokenAddressInput, false, 0], "Token unsupported")}>REMOVE</Button>
                     </div>
                     <div className="flex flex-wrap gap-1 mt-2">
                       {tokens.map(t => (

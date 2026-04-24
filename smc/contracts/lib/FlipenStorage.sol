@@ -108,6 +108,7 @@ abstract contract FlipenStorage is Initializable {
     // --- V4 Storage Appended Below ---
     mapping(address => bool) public isSupportedToken;
     mapping(address => mapping(address => uint256)) public referralEarningsToken;
+    mapping(address => uint8) public tokenDecimals;
     // ---------------------------------
 
     function __FlipenStorage_init() internal onlyInitializing {
