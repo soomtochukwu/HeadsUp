@@ -52,13 +52,11 @@ export function FlipenDataProvider({ children }: { children: React.ReactNode }) 
   const proxyAddress = FLIPEN_ADDRESSES[activeChainId]
   const contractABI = activeChainId === 42220 ? MAINNET_ABI : SEPOLIA_ABI
 
-  // Note: We need a way to pass the selected token here, but data-provider is global.
-  // We'll fetch CELO stats by default or the most relevant one.
+  // Note: Parameterless getContractStats returns aggregated totalVolume (Mixed)
   const { data: contractStats, refetch: refetchContractStats } = useReadContract({
     address: proxyAddress,
     abi: contractABI as any,
     functionName: 'getContractStats',
-    args: ["0x0000000000000000000000000000000000000000"], // Fetch CELO stats by default
     query: { enabled: !!proxyAddress, refetchInterval: 30000 }
   })
 
