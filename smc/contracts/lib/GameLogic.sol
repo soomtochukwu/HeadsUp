@@ -79,6 +79,16 @@ abstract contract GameLogic is
             "Invalid choice: must be 0 (tails) or 1 (heads)"
         );
 
+        // MiniPay compatibility: During gas estimation, wallets may call
+        // eth_estimateGas without forwarding the `value` field, causing
+        // msg.value (and therefore `amount`) to be 0 for native CELO bets.
+        // We allow this to pass so the estimation succeeds and returns a
+        // gas cost to the wallet. Real transactions always have amount > 0
+        // because the user sends CELO via msg.value.
+        if (token == address(0) && amount == 0) {
+            return; // Gas estimation dry-run — skip all validation
+        }
+
         // Normalize amount to 18 decimals for limit checks
         uint256 normalizedAmount = _getNormalizedAmount(amount, token);
         require(normalizedAmount >= minBetAmount, "Bet amount too low");

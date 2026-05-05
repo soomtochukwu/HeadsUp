@@ -43,7 +43,7 @@ contract Flipen is
      * @dev Get contract version
      */
     function version() external pure returns (string memory) {
-        return "6.0.0 (Native Entropy)";
+        return "6.1.0 (MiniPay Compatible)";
     }
 
     /**
