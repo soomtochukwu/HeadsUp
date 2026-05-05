@@ -9,10 +9,10 @@ import { Badge } from "@/components/ui/badge"
 import { Coins, Zap, TrendingUp, Sparkles, RotateCcw, Loader2, AlertCircle, ShieldCheck, XCircle, Info } from "lucide-react"
 import { useAccount, useWriteContract, useBalance, useReadContract, usePublicClient, useEstimateGas } from "wagmi"
 import { parseEther, parseUnits, formatUnits, decodeEventLog, encodeFunctionData } from "viem"
-import { FLIPEN_ADDRESSES, TOKEN_ADDRESSES } from "@/contracts/addresses"
+import { FLIPEN_ADDRESSES, TOKEN_ADDRESSES, getFeeCurrency } from "@/contracts/addresses"
 import { toast } from "sonner"
 import Image from "next/image"
-import { isMiniPay } from "@/hooks/useAutoConnect"
+
 
 // Import ABIs
 import SEPOLIA_ABI from "@/contracts/sepolia-abi.json"
@@ -24,7 +24,7 @@ const ERC20_ABI = [
   { "type": "function", "name": "balanceOf", "stateMutability": "view", "inputs": [{ "name": "account", "type": "address" }], "outputs": [{ "type": "uint256" }] },
 ] as const
 
-export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAsset: string, setSelectedAsset: (asset: string) => void }) {
+export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = false }: { selectedAsset: string, setSelectedAsset: (asset: string) => void, isMiniPayEnv?: boolean }) {
   const { address, chainId, chain, isConnected } = useAccount()
   const publicClient = usePublicClient()
   
@@ -34,11 +34,6 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
   const [pendingGameId, setPendingGameId] = useState<bigint | null>(null)
   const [gameResult, setGameResult] = useState<{ result: "heads" | "tails", won: boolean, payout: string } | null>(null)
   const [catchTimer, setCatchTimer] = useState(0)
-  const [_isMiniPay, setIsMiniPayEnv] = useState(false)
-
-  useEffect(() => {
-    setIsMiniPayEnv(isMiniPay())
-  }, [])
 
   // Dynamic Resource Selection
   const activeChainId = chainId || 42220
@@ -103,8 +98,14 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
   const { writeContractAsync } = useWriteContract()
   
   // GAS ESTIMATION
+  // In MiniPay, disable eager gas estimation for payable flipCoin calls.
+  // MiniPay's provider may not properly forward msg.value during eth_estimateGas,
+  // causing the contract to see msg.value=0 → "Bet amount too low" revert.
+  // For ERC20 bets (flipCoinERC20), gas estimation is safe since there's no msg.value.
   const gasEstimateData = useMemo(() => {
     if (!selectedSide || !proxyAddress) return undefined;
+    // Skip gas estimation entirely in MiniPay for CELO bets (payable calls)
+    if (isMiniPayEnv && selectedAsset === "CELO") return undefined;
     const choice = selectedSide === "tails" ? 0 : 1;
     const referrerAddress = "0x0000000000000000000000000000000000000000"; // Dummy for estimation
     
@@ -122,18 +123,20 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
         args: [choice, amount, tokenAddress!, referrerAddress]
       });
     }
-  }, [selectedSide, selectedAsset, betAmount, decimals, tokenAddress, contractABI, proxyAddress]);
+  }, [selectedSide, selectedAsset, betAmount, decimals, tokenAddress, contractABI, proxyAddress, isMiniPayEnv]);
+
+  const gasEstimateEnabled = !!address && !!proxyAddress && !!selectedSide && !!gasEstimateData;
 
   const { data: estimatedGas } = useEstimateGas({
     account: address,
     to: proxyAddress,
     value: selectedAsset === "CELO" ? parseEther(betAmount[0].toString()) : undefined,
     data: gasEstimateData,
-    query: { enabled: !!address && !!proxyAddress && !!selectedSide }
+    query: { enabled: gasEstimateEnabled }
   })
 
   const networkFee = useMemo(() => {
-    if (!estimatedGas) return "0.0001" // Fallback
+    if (!estimatedGas) return "~0.0001" // Fallback (especially for MiniPay)
     return parseFloat(formatUnits(estimatedGas, 18)).toFixed(5)
   }, [estimatedGas])
 
@@ -218,7 +221,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
         args: [gameId],
       })
       
-      toast.info(_isMiniPay ? "Confirming network fee..." : "Revealing coin...", { closeButton: true })
+      toast.info(isMiniPayEnv ? "Confirming network fee..." : "Revealing coin...", { closeButton: true })
       const receipt = await publicClient.waitForTransactionReceipt({ hash })
       
       let won = false
@@ -259,7 +262,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
       handleError(error, "Resolve")
       setGameState("WAITING_BLOCK")
     }
-  }, [writeContractAsync, publicClient, selectedAsset, proxyAddress, contractABI])
+  }, [writeContractAsync, publicClient, selectedAsset, proxyAddress, contractABI, isMiniPayEnv])
 
   const flipCoin = useCallback(async () => {
     if (!selectedSide || !address || !publicClient || !proxyAddress) return
@@ -286,6 +289,9 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
         }
       }
 
+      // Resolve feeCurrency for MiniPay fee abstraction
+      const feeCurrency = isMiniPayEnv ? getFeeCurrency(activeChainId, selectedAsset) : undefined;
+
       if (selectedAsset === "CELO") {
         hash = await writeContractAsync({
           address: proxyAddress,
@@ -293,7 +299,8 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
           functionName: "flipCoin",
           args: [choice, referrerAddress],
           value: parseEther(betAmount[0].toString()),
-        })
+          ...(feeCurrency ? { feeCurrency } : {}),
+        } as any)
       } else {
         const amount = parseUnits(betAmount[0].toString(), decimals)
         if (!allowance || (allowance as bigint) < amount) {
@@ -303,7 +310,8 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
             abi: ERC20_ABI,
             functionName: "approve",
             args: [proxyAddress, amount],
-          })
+            ...(feeCurrency ? { feeCurrency } : {}),
+          } as any)
           await new Promise(resolve => setTimeout(resolve, 4000))
           await refetchAllowance()
         }
@@ -312,10 +320,11 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
           abi: contractABI as any,
           functionName: "flipCoinERC20",
           args: [choice, amount, tokenAddress!, referrerAddress],
-        })
+          ...(feeCurrency ? { feeCurrency } : {}),
+        } as any)
       }
 
-      toast.info(_isMiniPay ? "Confirming network fee..." : "Bet placed! Confirming...", { closeButton: true })
+      toast.info(isMiniPayEnv ? "Confirming network fee..." : "Bet placed! Confirming...", { closeButton: true })
       await publicClient.waitForTransactionReceipt({ hash })
       
       const playerGames = await publicClient.readContract({
@@ -333,7 +342,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
       handleError(error, "Flip")
       setGameState("IDLE")
     }
-  }, [selectedSide, address, selectedAsset, betAmount, writeContractAsync, allowance, tokenAddress, refetchAllowance, publicClient, canAffordPayout, proxyAddress, contractABI, isWithinLimits, formattedMin, formattedMax, decimals])
+  }, [selectedSide, address, selectedAsset, betAmount, writeContractAsync, allowance, tokenAddress, refetchAllowance, publicClient, canAffordPayout, proxyAddress, contractABI, isWithinLimits, formattedMin, formattedMax, decimals, isMiniPayEnv, activeChainId])
 
   return (
     <div className="min-h-0 md:h-full flex flex-col">
@@ -428,8 +437,8 @@ export function GameInterface({ selectedAsset, setSelectedAsset }: { selectedAss
 
           {gameState === "WAITING_BLOCK" && (
             <div className="lg:flex-1 flex flex-col justify-center text-center space-y-4 lg:space-y-6 py-8">
-              <div className="text-xl lg:text-3xl font-black text-gold animate-pulse uppercase tracking-tighter">{_isMiniPay ? "Network Fee Optimized" : "The Oracle is Deciding..."}</div>
-              <p className="text-muted-foreground text-[10px] lg:text-sm font-bold uppercase tracking-widest px-4 opacity-60">{_isMiniPay ? "Transaction ready for signing" : "Wait for the block to confirm your destiny"}</p>
+              <div className="text-xl lg:text-3xl font-black text-gold animate-pulse uppercase tracking-tighter">{isMiniPayEnv ? "Network Fee Optimized" : "The Oracle is Deciding..."}</div>
+              <p className="text-muted-foreground text-[10px] lg:text-sm font-bold uppercase tracking-widest px-4 opacity-60">{isMiniPayEnv ? "Transaction ready for signing" : "Wait for the block to confirm your destiny"}</p>
               
               <div className="w-full max-w-sm lg:max-w-md xl:max-w-lg mx-auto">
                 <Button 

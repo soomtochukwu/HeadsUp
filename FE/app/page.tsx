@@ -10,15 +10,27 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { useAccount, useBalance, useReadContract } from "wagmi"
 import { formatUnits } from "viem"
 import { TOKEN_ADDRESSES } from "@/contracts/addresses"
+import { isMiniPay } from "@/hooks/useAutoConnect"
 
 const MINIMAL_ERC20_ABI = [
   { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] },
 ] as const
 
 export default function GamePage() {
+  // Default to USDm in MiniPay since users hold stablecoins, not native CELO
   const [selectedAsset, setSelectedAsset] = useState("CELO")
   const [isCommentsSidebarOpen, setIsCommentsSidebarOpen] = useState(false)
+  const [isMiniPayEnv, setIsMiniPayEnv] = useState(false)
   const { address, isConnected, chainId } = useAccount()
+
+  // Detect MiniPay and switch default asset on mount
+  useEffect(() => {
+    const miniPay = isMiniPay()
+    setIsMiniPayEnv(miniPay)
+    if (miniPay) {
+      setSelectedAsset("USDm")
+    }
+  }, [])
 
   // Native CELO Balance
   const { data: celoBalance } = useBalance({
@@ -80,7 +92,7 @@ export default function GamePage() {
             <div className="min-h-0 md:h-full flex flex-col">
               <div className="flex-1 flex flex-col lg:grid lg:grid-cols-4 gap-3 sm:gap-2 sm:gap-3 md:gap-4 md:min-h-0">
                 <div className="flex-1 lg:col-span-3 md:min-h-0 order-1">
-                  <GameInterface selectedAsset={selectedAsset} setSelectedAsset={setSelectedAsset} />
+                  <GameInterface selectedAsset={selectedAsset} setSelectedAsset={setSelectedAsset} isMiniPayEnv={isMiniPayEnv} />
                 </div>
                 <div className="flex-shrink-0 lg:col-span-1 md:min-h-0 order-2 lg:order-2">
                   <StatsPanel selectedAsset={selectedAsset} />
