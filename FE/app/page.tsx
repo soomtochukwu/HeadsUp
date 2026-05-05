@@ -17,19 +17,14 @@ const MINIMAL_ERC20_ABI = [
 ] as const
 
 export default function GamePage() {
-  // Default to USDm in MiniPay since users hold stablecoins, not native CELO
   const [selectedAsset, setSelectedAsset] = useState("CELO")
   const [isCommentsSidebarOpen, setIsCommentsSidebarOpen] = useState(false)
   const [isMiniPayEnv, setIsMiniPayEnv] = useState(false)
   const { address, isConnected, chainId } = useAccount()
 
-  // Detect MiniPay and switch default asset on mount
+  // Detect MiniPay environment
   useEffect(() => {
-    const miniPay = isMiniPay()
-    setIsMiniPayEnv(miniPay)
-    if (miniPay) {
-      setSelectedAsset("USDm")
-    }
+    setIsMiniPayEnv(isMiniPay())
   }, [])
 
   // Native CELO Balance

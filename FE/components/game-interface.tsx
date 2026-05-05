@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import { Coins, Zap, TrendingUp, Sparkles, RotateCcw, Loader2, AlertCircle, ShieldCheck, XCircle, Info } from "lucide-react"
-import { useAccount, useWriteContract, useBalance, useReadContract, usePublicClient, useEstimateGas } from "wagmi"
+import { useAccount, useWriteContract, useBalance, useReadContract, usePublicClient, useEstimateGas, useSendTransaction } from "wagmi"
 import { parseEther, parseUnits, formatUnits, decodeEventLog, encodeFunctionData } from "viem"
 import { FLIPEN_ADDRESSES, TOKEN_ADDRESSES, getFeeCurrency } from "@/contracts/addresses"
 import { toast } from "sonner"
@@ -23,6 +23,11 @@ const ERC20_ABI = [
   { "type": "function", "name": "allowance", "stateMutability": "view", "inputs": [{ "type": "address", "name": "owner" }, { "type": "address", "name": "spender" }], "outputs": [{ "type": "uint256" }] },
   { "type": "function", "name": "balanceOf", "stateMutability": "view", "inputs": [{ "name": "account", "type": "address" }], "outputs": [{ "type": "uint256" }] },
 ] as const
+
+// Generous gas limit for MiniPay. When provided, viem/wagmi skip their
+// internal eth_estimateGas call – which is what MiniPay's provider breaks
+// for payable functions (it doesn't forward msg.value in the estimate).
+const MINIPAY_GAS_LIMIT = BigInt(500_000)
 
 export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = false }: { selectedAsset: string, setSelectedAsset: (asset: string) => void, isMiniPayEnv?: boolean }) {
   const { address, chainId, chain, isConnected } = useAccount()
@@ -96,18 +101,20 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
   })
 
   const { writeContractAsync } = useWriteContract()
+  const { sendTransactionAsync } = useSendTransaction()
   
   // GAS ESTIMATION
-  // In MiniPay, disable eager gas estimation for payable flipCoin calls.
-  // MiniPay's provider may not properly forward msg.value during eth_estimateGas,
-  // causing the contract to see msg.value=0 → "Bet amount too low" revert.
-  // For ERC20 bets (flipCoinERC20), gas estimation is safe since there's no msg.value.
+  // In MiniPay, disable ALL eager gas estimation. MiniPay's provider doesn't
+  // properly forward msg.value during eth_estimateGas, causing the contract
+  // to revert with "Bet amount too low". Instead, we pass an explicit `gas`
+  // parameter to writeContractAsync/sendTransaction calls in MiniPay,
+  // which tells viem to skip its internal eth_estimateGas entirely.
   const gasEstimateData = useMemo(() => {
     if (!selectedSide || !proxyAddress) return undefined;
-    // Skip gas estimation entirely in MiniPay for CELO bets (payable calls)
-    if (isMiniPayEnv && selectedAsset === "CELO") return undefined;
+    // Skip gas estimation entirely in MiniPay
+    if (isMiniPayEnv) return undefined;
     const choice = selectedSide === "tails" ? 0 : 1;
-    const referrerAddress = "0x0000000000000000000000000000000000000000"; // Dummy for estimation
+    const referrerAddress = "0x0000000000000000000000000000000000000000";
     
     if (selectedAsset === "CELO") {
       return encodeFunctionData({
@@ -125,18 +132,16 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
     }
   }, [selectedSide, selectedAsset, betAmount, decimals, tokenAddress, contractABI, proxyAddress, isMiniPayEnv]);
 
-  const gasEstimateEnabled = !!address && !!proxyAddress && !!selectedSide && !!gasEstimateData;
-
   const { data: estimatedGas } = useEstimateGas({
     account: address,
     to: proxyAddress,
     value: selectedAsset === "CELO" ? parseEther(betAmount[0].toString()) : undefined,
     data: gasEstimateData,
-    query: { enabled: gasEstimateEnabled }
+    query: { enabled: !!address && !!proxyAddress && !!selectedSide && !!gasEstimateData }
   })
 
   const networkFee = useMemo(() => {
-    if (!estimatedGas) return "~0.0001" // Fallback (especially for MiniPay)
+    if (!estimatedGas) return "~0.0001"
     return parseFloat(formatUnits(estimatedGas, 18)).toFixed(5)
   }, [estimatedGas])
 
@@ -214,12 +219,14 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
     if (!publicClient || !proxyAddress) return
     try {
       setGameState("REVEALING")
+      // In MiniPay, provide explicit gas to skip internal eth_estimateGas
       const hash = await writeContractAsync({
         address: proxyAddress,
         abi: contractABI as any,
         functionName: "resolveGame",
         args: [gameId],
-      })
+        ...(isMiniPayEnv ? { gas: MINIPAY_GAS_LIMIT } : {}),
+      } as any)
       
       toast.info(isMiniPayEnv ? "Confirming network fee..." : "Revealing coin...", { closeButton: true })
       const receipt = await publicClient.waitForTransactionReceipt({ hash })
@@ -291,16 +298,36 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
 
       // Resolve feeCurrency for MiniPay fee abstraction
       const feeCurrency = isMiniPayEnv ? getFeeCurrency(activeChainId, selectedAsset) : undefined;
+      // In MiniPay, provide explicit gas to SKIP viem's internal eth_estimateGas
+      // (which fails for payable calls because MiniPay doesn't forward msg.value)
+      const miniPayGasOverride = isMiniPayEnv ? { gas: MINIPAY_GAS_LIMIT } : {};
 
       if (selectedAsset === "CELO") {
-        hash = await writeContractAsync({
-          address: proxyAddress,
-          abi: contractABI as any,
-          functionName: "flipCoin",
-          args: [choice, referrerAddress],
-          value: parseEther(betAmount[0].toString()),
-          ...(feeCurrency ? { feeCurrency } : {}),
-        } as any)
+        if (isMiniPayEnv) {
+          // MiniPay: Use sendTransaction with manually encoded data.
+          // This completely bypasses writeContractAsync's internal gas estimation
+          // pipeline which is what triggers the "Bet amount too low" revert.
+          const data = encodeFunctionData({
+            abi: contractABI,
+            functionName: "flipCoin",
+            args: [choice, referrerAddress]
+          });
+          hash = await sendTransactionAsync({
+            to: proxyAddress,
+            data,
+            value: parseEther(betAmount[0].toString()),
+            gas: MINIPAY_GAS_LIMIT,
+            ...(feeCurrency ? { feeCurrency } : {}),
+          } as any)
+        } else {
+          hash = await writeContractAsync({
+            address: proxyAddress,
+            abi: contractABI as any,
+            functionName: "flipCoin",
+            args: [choice, referrerAddress],
+            value: parseEther(betAmount[0].toString()),
+          })
+        }
       } else {
         const amount = parseUnits(betAmount[0].toString(), decimals)
         if (!allowance || (allowance as bigint) < amount) {
@@ -310,6 +337,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
             abi: ERC20_ABI,
             functionName: "approve",
             args: [proxyAddress, amount],
+            ...miniPayGasOverride,
             ...(feeCurrency ? { feeCurrency } : {}),
           } as any)
           await new Promise(resolve => setTimeout(resolve, 4000))
@@ -320,6 +348,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
           abi: contractABI as any,
           functionName: "flipCoinERC20",
           args: [choice, amount, tokenAddress!, referrerAddress],
+          ...miniPayGasOverride,
           ...(feeCurrency ? { feeCurrency } : {}),
         } as any)
       }
@@ -342,7 +371,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
       handleError(error, "Flip")
       setGameState("IDLE")
     }
-  }, [selectedSide, address, selectedAsset, betAmount, writeContractAsync, allowance, tokenAddress, refetchAllowance, publicClient, canAffordPayout, proxyAddress, contractABI, isWithinLimits, formattedMin, formattedMax, decimals, isMiniPayEnv, activeChainId])
+  }, [selectedSide, address, selectedAsset, betAmount, writeContractAsync, sendTransactionAsync, allowance, tokenAddress, refetchAllowance, publicClient, canAffordPayout, proxyAddress, contractABI, isWithinLimits, formattedMin, formattedMax, decimals, isMiniPayEnv, activeChainId])
 
   return (
     <div className="min-h-0 md:h-full flex flex-col">
