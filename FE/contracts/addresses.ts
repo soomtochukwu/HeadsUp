@@ -63,3 +63,20 @@ export const getTokenSymbol = (chainId: number, address: string): string => {
   }
   return "ERC20";
 };
+
+// MiniPay fee abstraction adapters
+export const FEE_CURRENCY_ADAPTERS: Record<number, Record<string, `0x${string}`>> = {
+  42220: { // Mainnet
+    "USDm": "0x765DE816845861e75A25fCA122bb6898B8B1282a", // USDm has no adapter, use token address directly per docs
+    "USDC": "0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B", // USDC adapter on Mainnet
+    "USDT": "0x0E2A3e05bc9A16F5292A6170456A710cb89C6f72", // USDT adapter on Mainnet
+  },
+  11142220: { // Sepolia
+    "USDm": "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1",
+    "USDC": "0x4822e58de6f5e485eF90df51C41CE01721331dC0",
+  }
+};
+
+export const getFeeCurrency = (chainId: number, symbol: string): `0x${string}` | undefined => {
+  return FEE_CURRENCY_ADAPTERS[chainId]?.[symbol] || undefined;
+};
