@@ -24,10 +24,8 @@ const ERC20_ABI = [
   { "type": "function", "name": "balanceOf", "stateMutability": "view", "inputs": [{ "name": "account", "type": "address" }], "outputs": [{ "type": "uint256" }] },
 ] as const
 
-// Generous gas limit for MiniPay. When provided, viem/wagmi skip their
-// internal eth_estimateGas call – which is what MiniPay's provider breaks
-// for payable functions (it doesn't forward msg.value in the estimate).
-const MINIPAY_GAS_LIMIT = BigInt(500_000)
+// No longer need hardcoded gas limit since contract v6.1.0 natively supports
+// MiniPay's gas estimation without reverting.
 
 export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = false }: { selectedAsset: string, setSelectedAsset: (asset: string) => void, isMiniPayEnv?: boolean }) {
   const { address, chainId, chain, isConnected } = useAccount()
@@ -220,13 +218,12 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
     try {
       setGameState("REVEALING")
       const feeCurrency = isMiniPayEnv ? getFeeCurrency(activeChainId, selectedAsset) : undefined;
-      // In MiniPay, provide explicit gas to skip internal eth_estimateGas
+      // Call resolveGame, injecting feeCurrency for MiniPay
       const hash = await writeContractAsync({
         address: proxyAddress,
         abi: contractABI as any,
         functionName: "resolveGame",
         args: [gameId],
-        ...(isMiniPayEnv ? { gas: MINIPAY_GAS_LIMIT } : {}),
         ...(feeCurrency ? { feeCurrency } : {}),
       } as any)
       
@@ -300,36 +297,16 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
 
       // Resolve feeCurrency for MiniPay fee abstraction
       const feeCurrency = isMiniPayEnv ? getFeeCurrency(activeChainId, selectedAsset) : undefined;
-      // In MiniPay, provide explicit gas to SKIP viem's internal eth_estimateGas
-      // (which fails for payable calls because MiniPay doesn't forward msg.value)
-      const miniPayGasOverride = isMiniPayEnv ? { gas: MINIPAY_GAS_LIMIT } : {};
 
       if (selectedAsset === "CELO") {
-        if (isMiniPayEnv) {
-          // MiniPay: Use sendTransaction with manually encoded data.
-          // This completely bypasses writeContractAsync's internal gas estimation
-          // pipeline which is what triggers the "Bet amount too low" revert.
-          const data = encodeFunctionData({
-            abi: contractABI,
-            functionName: "flipCoin",
-            args: [choice, referrerAddress]
-          });
-          hash = await sendTransactionAsync({
-            to: proxyAddress,
-            data,
-            value: parseEther(betAmount[0].toString()),
-            gas: MINIPAY_GAS_LIMIT,
-            ...(feeCurrency ? { feeCurrency } : {}),
-          } as any)
-        } else {
-          hash = await writeContractAsync({
-            address: proxyAddress,
-            abi: contractABI as any,
-            functionName: "flipCoin",
-            args: [choice, referrerAddress],
-            value: parseEther(betAmount[0].toString()),
-          })
-        }
+        hash = await writeContractAsync({
+          address: proxyAddress,
+          abi: contractABI as any,
+          functionName: "flipCoin",
+          args: [choice, referrerAddress],
+          value: parseEther(betAmount[0].toString()),
+          ...(feeCurrency ? { feeCurrency } : {}),
+        } as any)
       } else {
         const amount = parseUnits(betAmount[0].toString(), decimals)
         if (!allowance || (allowance as bigint) < amount) {
@@ -339,7 +316,6 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
             abi: ERC20_ABI,
             functionName: "approve",
             args: [proxyAddress, amount],
-            ...miniPayGasOverride,
             ...(feeCurrency ? { feeCurrency } : {}),
           } as any)
           await new Promise(resolve => setTimeout(resolve, 4000))
@@ -350,7 +326,6 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
           abi: contractABI as any,
           functionName: "flipCoinERC20",
           args: [choice, amount, tokenAddress!, referrerAddress],
-          ...miniPayGasOverride,
           ...(feeCurrency ? { feeCurrency } : {}),
         } as any)
       }
