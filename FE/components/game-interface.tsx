@@ -219,6 +219,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
     if (!publicClient || !proxyAddress) return
     try {
       setGameState("REVEALING")
+      const feeCurrency = isMiniPayEnv ? getFeeCurrency(activeChainId, selectedAsset) : undefined;
       // In MiniPay, provide explicit gas to skip internal eth_estimateGas
       const hash = await writeContractAsync({
         address: proxyAddress,
@@ -226,6 +227,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
         functionName: "resolveGame",
         args: [gameId],
         ...(isMiniPayEnv ? { gas: MINIPAY_GAS_LIMIT } : {}),
+        ...(feeCurrency ? { feeCurrency } : {}),
       } as any)
       
       toast.info(isMiniPayEnv ? "Confirming network fee..." : "Revealing coin...", { closeButton: true })
@@ -269,7 +271,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
       handleError(error, "Resolve")
       setGameState("WAITING_BLOCK")
     }
-  }, [writeContractAsync, publicClient, selectedAsset, proxyAddress, contractABI, isMiniPayEnv])
+  }, [writeContractAsync, publicClient, selectedAsset, proxyAddress, contractABI, isMiniPayEnv, activeChainId])
 
   const flipCoin = useCallback(async () => {
     if (!selectedSide || !address || !publicClient || !proxyAddress) return
