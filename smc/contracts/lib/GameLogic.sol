@@ -316,24 +316,4 @@ abstract contract GameLogic is
             platformFeesToken[address(0)]
         );
     }
-
-    /**
-     * @dev Normalize amount to 18 decimals
-     */
-    function _getNormalizedAmount(uint256 amount, address token) internal view returns (uint256) {
-        if (token == address(0)) return amount; // CELO is 18 decimals
-        
-        uint8 decimals = tokenDecimals[token];
-        if (decimals == 0) {
-            // Default to 18 if not set (for cUSD or unset tokens)
-            return amount;
-        }
-        
-        if (decimals < 18) {
-            return amount * (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            return amount / (10 ** (decimals - 18));
-        }
-        return amount;
-    }
 }

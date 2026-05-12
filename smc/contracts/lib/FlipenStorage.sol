@@ -103,6 +103,8 @@ abstract contract FlipenStorage is Initializable {
     
     event OnboardingBonusUpdated(uint256 celoAmount, uint256 cusdAmount);
     event OnboardingBonusClaimed(address indexed player, address indexed token, uint256 amount);
+    event BankrollDeposited(address indexed user, address indexed token, uint256 amount, uint256 shares);
+    event BankrollWithdrawn(address indexed user, address indexed token, uint256 amount, uint256 shares);
     // ---------------------------------
 
     // --- V4 Storage Appended Below ---
@@ -117,6 +119,11 @@ abstract contract FlipenStorage is Initializable {
     mapping(address => uint256) public lockedFundsToken;
     // ---------------------------------
 
+    // --- V6 Storage Appended Below ---
+    mapping(address => uint256) public totalSharesToken;
+    mapping(address => mapping(address => uint256)) public userSharesToken;
+    // ---------------------------------
+
     function __FlipenStorage_init() internal onlyInitializing {
         minBetAmount = 0.01 ether; 
         maxBetAmount = 100 ether; 
@@ -127,5 +134,24 @@ abstract contract FlipenStorage is Initializable {
         // V2 Initialization
         currentHouseEdgeBP = 250; // 2.5% default
         currentReferralRewardBP = 100; // 1.0% default
+    }
+
+    /**
+     * @dev Normalize amount to 18 decimals
+     */
+    function _getNormalizedAmount(uint256 amount, address token) internal view returns (uint256) {
+        if (token == address(0)) return amount; // CELO is 18 decimals
+        
+        uint8 decimals = tokenDecimals[token];
+        if (decimals == 0) {
+            return amount;
+        }
+        
+        if (decimals < 18) {
+            return amount * (10 ** (18 - decimals));
+        } else if (decimals > 18) {
+            return amount / (10 ** (decimals - 18));
+        }
+        return amount;
     }
 }

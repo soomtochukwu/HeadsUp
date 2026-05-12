@@ -227,4 +227,72 @@ abstract contract AdminFunctions is
             revert("Unsupported token");
         }
     }
+
+    /**
+     * @dev Allows any user to contribute to the house bankroll and earn yield
+     * @param token Address of the token to deposit (address(0) for CELO)
+     * @param amount Amount of tokens to deposit
+     */
+    function depositBankroll(address token, uint256 amount) external payable whenNotPaused {
+        require(token == address(0) || isSupportedToken[token] || token == cUSD, "Token not supported");
+        
+        uint256 depositAmount = (token == address(0)) ? msg.value : amount;
+        require(depositAmount > 0, "Amount must be > 0");
+
+        if (token != address(0)) {
+            require(IERC20(token).transferFrom(msg.sender, address(this), depositAmount), "Transfer failed");
+        }
+
+        uint256 poolValue = _getPoolValue(token) - depositAmount; // Value before this deposit
+        uint256 shares;
+
+        if (totalSharesToken[token] == 0 || poolValue == 0) {
+            shares = _getNormalizedAmount(depositAmount, token); // Initial shares based on normalized amount
+        } else {
+            shares = (depositAmount * totalSharesToken[token]) / poolValue;
+        }
+
+        totalSharesToken[token] += shares;
+        userSharesToken[token][msg.sender] += shares;
+
+        emit BankrollDeposited(msg.sender, token, depositAmount, shares);
+    }
+
+    /**
+     * @dev Allows an LP to withdraw their portion of the bankroll
+     * @param token Address of the token to withdraw
+     * @param shares Amount of shares to burn
+     */
+    function withdrawBankroll(address token, uint256 shares) external nonReentrant {
+        require(userSharesToken[token][msg.sender] >= shares, "Insufficient shares");
+        require(shares > 0, "Shares must be > 0");
+
+        uint256 poolValue = _getPoolValue(token);
+        uint256 amount = (shares * poolValue) / totalSharesToken[token];
+
+        // Ensure we aren't withdrawing locked user bets
+        uint256 available = (token == address(0) ? address(this).balance : IERC20(token).balanceOf(address(this))) - lockedFundsToken[token];
+        require(amount <= available, "Insufficient liquid bankroll");
+
+        userSharesToken[token][msg.sender] -= shares;
+        totalSharesToken[token] -= shares;
+
+        if (token == address(0)) {
+            (bool success, ) = payable(msg.sender).call{value: amount}("");
+            require(success, "CELO transfer failed");
+        } else {
+            require(IERC20(token).transfer(msg.sender, amount), "Token transfer failed");
+        }
+
+        emit BankrollWithdrawn(msg.sender, token, amount, shares);
+    }
+
+    /**
+     * @dev Internal helper to get pool value (excluding platform fees)
+     */
+    function _getPoolValue(address token) internal view returns (uint256) {
+        uint256 balance = (token == address(0)) ? address(this).balance : IERC20(token).balanceOf(address(this));
+        uint256 fees = platformFeesToken[token];
+        return (balance > fees) ? (balance - fees) : 0;
+    }
 }
