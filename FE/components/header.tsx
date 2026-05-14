@@ -30,6 +30,7 @@ export function Header({
 
   const tabs = [
     { id: "game", label: "Game", icon: Coins, href: "/" },
+    { id: "bankroll", label: "Bankroll", icon: Wallet, href: "/bankroll" },
     { id: "history", label: "History", icon: TrendingUp, href: "/history" },
     { id: "leaderboard", label: "Leaderboard", icon: Trophy, href: "/leaderboard" },
     { id: "referrals", label: "Referrals", icon: Users, href: "/referrals" },
