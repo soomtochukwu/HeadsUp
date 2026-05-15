@@ -7,17 +7,18 @@ import { AnimatedBackground } from "@/components/animated-background"
 import { CommentsSidebar } from "@/components/comments-sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
 import { useAccount, useBalance } from "wagmi"
+import { formatUnits } from "viem"
 
 export default function LeaderboardPage() {
   const [isWalletConnected, setIsWalletConnected] = useState(false)
   const [selectedNetwork, setSelectedNetwork] = useState("celo")
   const [chainID, setChainID] = useState<number>()
   const { address } = useAccount()
-  const _balance = useBalance({
+  const balanceResult = useBalance({
     address: address,
     chainId: chainID,
-    token: undefined,
-  }).data?.formatted
+  })
+  const _balance = balanceResult.data ? formatUnits(balanceResult.data.value, balanceResult.data.decimals) : "0"
   const [balance, setBalance] = useState(String(Number(_balance).toFixed(5)))
   const [walletAddress, setWalletAddress] = useState("")
   const [isCommentsSidebarOpen, setIsCommentsSidebarOpen] = useState(false)

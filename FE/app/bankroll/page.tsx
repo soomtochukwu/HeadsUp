@@ -48,7 +48,7 @@ export default function BankrollPage() {
   const { data: tokenDecimals } = useReadContract({ address: proxyAddress, abi: BANKROLL_ABI, functionName: 'tokenDecimals', args: [tokenAddress as `0x${string}`], query: { enabled: !!proxyAddress && selectedAsset !== "CELO" } })
   const { data: allowance, refetch: refetchAllowance } = useReadContract({ address: tokenAddress as `0x${string}`, abi: ERC20_ABI, functionName: 'allowance', args: address && proxyAddress ? [address, proxyAddress] : undefined, query: { enabled: !!address && !!proxyAddress && selectedAsset !== "CELO" } })
   
-  const { data: userWalletBalance } = useBalance({ address, token: selectedAsset === "CELO" ? undefined : tokenAddress as `0x${string}`, query: { enabled: !!address } })
+  const { data: userWalletBalance } = useBalance({ address, token: selectedAsset === "CELO" ? undefined : tokenAddress as `0x${string}`, query: { enabled: !!address } } as any)
 
   const decimals = useMemo(() => selectedAsset === "CELO" ? 18 : (tokenDecimals || 18), [selectedAsset, tokenDecimals])
   
@@ -214,7 +214,7 @@ export default function BankrollPage() {
                     <div className="space-y-2">
                       <div className="flex justify-between items-end">
                         <label className="text-[10px] font-black uppercase text-muted-foreground">Amount</label>
-                        <span className="text-[10px] font-bold text-gold">Balance: {userWalletBalance ? parseFloat(userWalletBalance.formatted).toFixed(4) : "0.00"}</span>
+                        <span className="text-[10px] font-bold text-gold">Balance: {userWalletBalance ? parseFloat(formatUnits(userWalletBalance.value, userWalletBalance.decimals)).toFixed(4) : "0.00"}</span>
                       </div>
                       <div className="relative">
                         <Input 
@@ -227,7 +227,7 @@ export default function BankrollPage() {
                           variant="ghost" 
                           size="sm" 
                           className="absolute right-2 top-2 h-10 text-gold font-black hover:bg-gold/10"
-                          onClick={() => setAmount(userWalletBalance?.formatted || "0")}
+                          onClick={() => setAmount(userWalletBalance ? formatUnits(userWalletBalance.value, userWalletBalance.decimals) : "0")}
                         >
                           MAX
                         </Button>
