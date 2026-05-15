@@ -90,7 +90,7 @@ export function GameHistory() {
               </TableHeader>
               <TableBody>
                 {sortedActivities.map((act) => (
-                  <TableRow key={act.txHash} className={`border-gold/5 transition-colors group ${act.status === 'FAILED' ? 'opacity-60 grayscale' : ''}`}>
+                  <TableRow key={act.txHash} className="border-gold/5 transition-colors group">
                     <TableCell className="py-4">
                       <div className="flex flex-col">
                         <span className="text-xs font-mono font-bold tracking-tighter">
@@ -103,10 +103,10 @@ export function GameHistory() {
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex flex-col items-center">
-                        <span className={`text-[10px] font-bold uppercase ${act.status === 'FAILED' ? 'text-red-400' : 'text-foreground'}`}>
+                        <span className="text-[10px] font-bold uppercase text-foreground">
                           {act.method === 'flipCoin' || act.method === 'flipCoinERC20' ? 'Flip' : act.method}
                         </span>
-                        {act.status !== 'FAILED' && act.method.includes('flip') && (
+                        {act.method.includes('flip') && (
                           <Badge variant="outline" className="text-[8px] h-4 px-1 border-gold/20 leading-none">
                             {act.playerChoice === 1 ? '👑 HEADS' : '💰 TAILS'}
                           </Badge>
@@ -121,12 +121,7 @@ export function GameHistory() {
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex justify-center">
-                        {act.status === 'FAILED' ? (
-                          <div className="flex items-center gap-1 text-red-400">
-                            <ShieldAlert className="w-3 h-3" />
-                            <span className="text-[9px] font-black uppercase">Reverted</span>
-                          </div>
-                        ) : act.status === 'PENDING' ? (
+                        {act.status === 'PENDING' ? (
                           <div className="flex items-center gap-1 text-gold/60">
                             <Loader2 className="w-3 h-3 animate-spin" />
                             <span className="text-[9px] font-black uppercase tracking-tighter">Flipping...</span>
@@ -141,9 +136,7 @@ export function GameHistory() {
                     </TableCell>
                     <TableCell className="text-right pr-6">
                       <div className="flex flex-col items-end">
-                        {act.status === 'FAILED' ? (
-                          <span className="text-[10px] text-red-400 font-bold uppercase tracking-tighter">Gas Wasted</span>
-                        ) : act.status === 'PENDING' ? (
+                        {act.status === 'PENDING' ? (
                           <div className="flex flex-col items-end gap-1.5">
                             {address?.toLowerCase() === act.player.toLowerCase() ? (
                               <>
