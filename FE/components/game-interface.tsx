@@ -178,9 +178,9 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
     ]
 
     // Only add tokens that have addresses for the current chain
-    if (availableTokens["USDm"]) assets.push({ symbol: "USDm", name: "USD Mento", icon: "$", balance: formatStr(tokenBalanceRaw), network: chain?.name || "Celo", address: availableTokens["USDm"] })
-    if (availableTokens["USDC"]) assets.push({ symbol: "USDC", name: "USDC Native", icon: "Ⓒ", balance: formatStr(tokenBalanceRaw), network: chain?.name || "Celo", address: availableTokens["USDC"] })
-    if (availableTokens["USDT"]) assets.push({ symbol: "USDT", name: "Tether", icon: "₮", balance: formatStr(tokenBalanceRaw), network: chain?.name || "Celo", address: availableTokens["USDT"] })
+    if (availableTokens["USDm"]) assets.push({ symbol: "USDm", name: "USD Mento", icon: "$", balance: formatStr(tokenBalanceRaw), network: chain?.name || "Celo" })
+    if (availableTokens["USDC"]) assets.push({ symbol: "USDC", name: "USDC Native", icon: "Ⓒ", balance: formatStr(tokenBalanceRaw), network: chain?.name || "Celo" })
+    if (availableTokens["USDT"]) assets.push({ symbol: "USDT", name: "Tether", icon: "₮", balance: formatStr(tokenBalanceRaw), network: chain?.name || "Celo" })
 
     return assets
   }, [celoBalance, tokenBalanceRaw, chain, activeChainId, selectedAsset])
