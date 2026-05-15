@@ -4,3 +4,4 @@ plans.md
 
 .github/workflows/*
 .env*.local
+/rand
