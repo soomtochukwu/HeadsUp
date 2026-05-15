@@ -10,17 +10,15 @@ import { useAccount, useBalance } from "wagmi"
 import { formatUnits } from "viem"
 
 export default function LeaderboardPage() {
-  const [isWalletConnected, setIsWalletConnected] = useState(false)
   const [selectedNetwork, setSelectedNetwork] = useState("celo")
   const [chainID, setChainID] = useState<number>()
-  const { address } = useAccount()
+  const { address, isConnected } = useAccount()
   const balanceResult = useBalance({
     address: address,
     chainId: chainID,
   })
   const _balance = balanceResult.data ? formatUnits(balanceResult.data.value, balanceResult.data.decimals) : "0"
   const [balance, setBalance] = useState(String(Number(_balance).toFixed(5)))
-  const [walletAddress, setWalletAddress] = useState("")
   const [isCommentsSidebarOpen, setIsCommentsSidebarOpen] = useState(false)
 
   return (
@@ -31,22 +29,16 @@ export default function LeaderboardPage() {
         <CommentsSidebar
           isOpen={isCommentsSidebarOpen}
           setIsOpen={setIsCommentsSidebarOpen}
-          isWalletConnected={isWalletConnected}
-          walletAddress={walletAddress}
+          isWalletConnected={isConnected}
+          walletAddress={address || ""}
         />
-        
+
         <div className="relative z-10 flex flex-col min-h-screen">
           <div className="flex-shrink-0">
             <Header
-              isWalletConnected={isWalletConnected}
-              setIsWalletConnected={setIsWalletConnected}
-              selectedNetwork={selectedNetwork}
-              setSelectedNetwork={setSelectedNetwork}
-              setChainID={setChainID}
               balance={balance}
-              walletAddress={walletAddress}
-              setWalletAddress={setWalletAddress}
               setIsCommentsSidebarOpen={setIsCommentsSidebarOpen}
+              selectedAsset="CELO"
             />
           </div>
 
