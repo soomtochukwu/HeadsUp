@@ -9,7 +9,7 @@ import { useConnect, useConnectors } from "wagmi"
 export function isMiniPay(): boolean {
   return (
     typeof window !== "undefined" &&
-    (window.ethereum as any)?.isMiniPay === true
+    (window as any).ethereum?.isMiniPay === true
   )
 }
 
