@@ -24,7 +24,7 @@ export function StatsPanel({ selectedAsset = "CELO" }: { selectedAsset?: string 
       enabled: !!proxyAddress,
       refetchInterval: 10000
     }
-  })
+  } as any)
 
   const bankrollValue = useMemo(() => {
     if (!bankroll) return "0.00"
