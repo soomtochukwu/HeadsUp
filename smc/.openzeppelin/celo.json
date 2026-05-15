@@ -3238,6 +3238,457 @@
           ]
         }
       }
+    },
+    "79415abad75ccce4e538d45159b579bc59e5c0bf34093af98ff9c1d1cefaf3b6": {
+      "address": "0x3ca2A4aE913EBdeFa455ee5C49800d3E55AeE6dA",
+      "txHash": "0x4ceefe1c12f943c8545885cf01316417b908ed55cfd05d93f78a0af133213c6d",
+      "layout": {
+        "solcVersion": "0.8.28",
+        "storage": [
+          {
+            "label": "gameRequests",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_mapping(t_uint256,t_struct(GameRequest)2167_storage)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:62"
+          },
+          {
+            "label": "playerGames",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_mapping(t_address,t_array(t_uint256)dyn_storage)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:63"
+          },
+          {
+            "label": "gameCounter",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:66"
+          },
+          {
+            "label": "totalGamesPlayed",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:69"
+          },
+          {
+            "label": "totalVolume",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:70"
+          },
+          {
+            "label": "platformFees",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:71"
+          },
+          {
+            "label": "minBetAmount",
+            "offset": 0,
+            "slot": "6",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:80"
+          },
+          {
+            "label": "maxBetAmount",
+            "offset": 0,
+            "slot": "7",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:81"
+          },
+          {
+            "label": "cUSD",
+            "offset": 0,
+            "slot": "8",
+            "type": "t_address",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:84"
+          },
+          {
+            "label": "referrers",
+            "offset": 0,
+            "slot": "9",
+            "type": "t_mapping(t_address,t_address)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:129"
+          },
+          {
+            "label": "referralEarningsCELO",
+            "offset": 0,
+            "slot": "10",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:130"
+          },
+          {
+            "label": "referralEarningsCUSD",
+            "offset": 0,
+            "slot": "11",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:131"
+          },
+          {
+            "label": "currentHouseEdgeBP",
+            "offset": 0,
+            "slot": "12",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:133"
+          },
+          {
+            "label": "currentReferralRewardBP",
+            "offset": 0,
+            "slot": "13",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:134"
+          },
+          {
+            "label": "refereeCount",
+            "offset": 0,
+            "slot": "14",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:136"
+          },
+          {
+            "label": "onboardingBonusCELO",
+            "offset": 0,
+            "slot": "15",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:139"
+          },
+          {
+            "label": "onboardingBonusCUSD",
+            "offset": 0,
+            "slot": "16",
+            "type": "t_uint256",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:140"
+          },
+          {
+            "label": "hasClaimedOnboardingBonus",
+            "offset": 0,
+            "slot": "17",
+            "type": "t_mapping(t_address,t_bool)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:141"
+          },
+          {
+            "label": "isSupportedToken",
+            "offset": 0,
+            "slot": "18",
+            "type": "t_mapping(t_address,t_bool)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:150"
+          },
+          {
+            "label": "referralEarningsToken",
+            "offset": 0,
+            "slot": "19",
+            "type": "t_mapping(t_address,t_mapping(t_address,t_uint256))",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:151"
+          },
+          {
+            "label": "tokenDecimals",
+            "offset": 0,
+            "slot": "20",
+            "type": "t_mapping(t_address,t_uint8)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:152"
+          },
+          {
+            "label": "totalVolumeToken",
+            "offset": 0,
+            "slot": "21",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:156"
+          },
+          {
+            "label": "platformFeesToken",
+            "offset": 0,
+            "slot": "22",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:157"
+          },
+          {
+            "label": "lockedFundsToken",
+            "offset": 0,
+            "slot": "23",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:158"
+          },
+          {
+            "label": "totalSharesToken",
+            "offset": 0,
+            "slot": "24",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:162"
+          },
+          {
+            "label": "userSharesToken",
+            "offset": 0,
+            "slot": "25",
+            "type": "t_mapping(t_address,t_mapping(t_address,t_uint256))",
+            "contract": "FlipenStorage",
+            "src": "contracts/lib/FlipenStorage.sol:163"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)167_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)13_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(PausableStorage)111_storage": {
+            "label": "struct PausableUpgradeable.PausableStorage",
+            "members": [
+              {
+                "label": "_paused",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(ReentrancyGuardStorage)445_storage": {
+            "label": "struct ReentrancyGuardUpgradeable.ReentrancyGuardStorage",
+            "members": [
+              {
+                "label": "_status",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_array(t_uint256)dyn_storage": {
+            "label": "uint256[]",
+            "numberOfBytes": "32"
+          },
+          "t_enum(GameStatus)2145": {
+            "label": "enum FlipenStorage.GameStatus",
+            "members": [
+              "PENDING",
+              "FULFILLED",
+              "CANCELLED",
+              "EXPIRED"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_address)": {
+            "label": "mapping(address => address)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_array(t_uint256)dyn_storage)": {
+            "label": "mapping(address => uint256[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_mapping(t_address,t_uint256))": {
+            "label": "mapping(address => mapping(address => uint256))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint8)": {
+            "label": "mapping(address => uint8)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(GameRequest)2167_storage)": {
+            "label": "mapping(uint256 => struct FlipenStorage.GameRequest)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(GameRequest)2167_storage": {
+            "label": "struct FlipenStorage.GameRequest",
+            "members": [
+              {
+                "label": "player",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "amount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "playerChoice",
+                "type": "t_uint8",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "status",
+                "type": "t_enum(GameStatus)2145",
+                "offset": 1,
+                "slot": "2"
+              },
+              {
+                "label": "won",
+                "type": "t_bool",
+                "offset": 2,
+                "slot": "2"
+              },
+              {
+                "label": "timestamp",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "commitBlock",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "randomNumber",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "coinResult",
+                "type": "t_uint8",
+                "offset": 0,
+                "slot": "6"
+              },
+              {
+                "label": "token",
+                "type": "t_address",
+                "offset": 1,
+                "slot": "6"
+              }
+            ],
+            "numberOfBytes": "224"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol:21",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.ReentrancyGuard": [
+            {
+              "contract": "ReentrancyGuardUpgradeable",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "contracts/lib/FlipenStorage.sol:12",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
     }
   }
 }

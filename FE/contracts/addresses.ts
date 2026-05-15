@@ -1,5 +1,5 @@
 // Auto-generated file - Do not edit manually
-// Generated on: 2026-05-05T16:14:53.057Z
+// Generated on: 2026-05-14T12:22:20.459Z
 
 export const contractAddresses: any = {
   "sepolia": {
@@ -9,16 +9,16 @@ export const contractAddresses: any = {
     "deployer": "0x8a371e00cd51E2BE005B86EF73C5Ee9Ef6d23FeB",
     "messengerAddress": "0x1824F5b2b32b059Ba600a0AaD38482Bd5b775CE9",
     "messengerImplementationAddress": "0x8ea76267c2eAD25223B2b2CefEdF5F34D081Dc1A",
-    "lastUpgradedAt": "2026-04-24T13:23:26.079Z"
+    "lastUpgradedAt": "2026-05-14T12:21:46.013Z"
   },
   "celo": {
     "proxyAddress": "0xD6c9912EB6fd064A6B8Bd5786C3cf787806EEdAb",
-    "implementationAddress": "0x04394C981b33e4fB84fD4eC2bf0A0B859Ef3629e",
+    "implementationAddress": "0x3ca2A4aE913EBdeFa455ee5C49800d3E55AeE6dA",
     "deployedAt": "2026-04-03T05:47:21.729Z",
     "deployer": "0x8a371e00cd51E2BE005B86EF73C5Ee9Ef6d23FeB",
     "messengerAddress": "0x9a82055d6C4Ad4C33734A22DbCD43FD8aE4bE097",
     "messengerImplementationAddress": "0x664431647b4Bff1bB0626bF77961ca17e233e28A",
-    "lastUpgradedAt": "2026-05-05T16:14:53.057Z"
+    "lastUpgradedAt": "2026-05-14T12:22:20.459Z"
   }
 };
 
@@ -64,19 +64,8 @@ export const getTokenSymbol = (chainId: number, address: string): string => {
   return "ERC20";
 };
 
-// MiniPay fee abstraction adapters
-export const FEE_CURRENCY_ADAPTERS: Record<number, Record<string, `0x${string}`>> = {
-  42220: { // Mainnet
-    "USDm": "0x765DE816845861e75A25fCA122bb6898B8B1282a", // USDm has no adapter, use token address directly per docs
-    "USDC": "0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B", // USDC adapter on Mainnet
-    "USDT": "0x0E2A3e05bc9A16F5292A6170456A710cb89C6f72", // USDT adapter on Mainnet
-  },
-  11142220: { // Sepolia
-    "USDm": "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1",
-    "USDC": "0x4822e58de6f5e485eF90df51C41CE01721331dC0",
-  }
-};
-
-export const getFeeCurrency = (chainId: number, symbol: string): `0x${string}` | undefined => {
-  return FEE_CURRENCY_ADAPTERS[chainId]?.[symbol] || undefined;
+export const getFeeCurrency = (chainId: number, asset: string) => {
+  if (asset === "CELO") return undefined;
+  // Map standard asset names to their token addresses for fee payment
+  return TOKEN_ADDRESSES[chainId]?.[asset] as `0x${string}` | undefined;
 };

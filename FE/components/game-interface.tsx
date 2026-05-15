@@ -225,6 +225,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
         functionName: "resolveGame",
         args: [gameId],
         ...(feeCurrency ? { feeCurrency } : {}),
+        ...(isMiniPayEnv ? { gas: BigInt(400000) } : {}),
       } as any)
       
       toast.info(isMiniPayEnv ? "Confirming network fee..." : "Revealing coin...", { closeButton: true })
@@ -306,6 +307,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
           args: [choice, referrerAddress],
           value: parseEther(betAmount[0].toString()),
           ...(feeCurrency ? { feeCurrency } : {}),
+          ...(isMiniPayEnv ? { gas: BigInt(500000) } : {}),
         } as any)
       } else {
         const amount = parseUnits(betAmount[0].toString(), decimals)
@@ -317,6 +319,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
             functionName: "approve",
             args: [proxyAddress, amount],
             ...(feeCurrency ? { feeCurrency } : {}),
+            ...(isMiniPayEnv ? { gas: BigInt(150000) } : {}),
           } as any)
           await new Promise(resolve => setTimeout(resolve, 4000))
           await refetchAllowance()
@@ -327,6 +330,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
           functionName: "flipCoinERC20",
           args: [choice, amount, tokenAddress!, referrerAddress],
           ...(feeCurrency ? { feeCurrency } : {}),
+          ...(isMiniPayEnv ? { gas: BigInt(600000) } : {}),
         } as any)
       }
 
