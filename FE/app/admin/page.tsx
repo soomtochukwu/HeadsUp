@@ -299,12 +299,13 @@ export default function AdminPage() {
                 <CardContent className="space-y-4 pt-2">
                   <div className="space-y-2">
                     <Input placeholder="0.00" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} className="bg-background/50 h-10 font-mono" />
-                    <div className="flex gap-2">
-                      <Button className="flex-1 bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30" variant="outline" onClick={() => handleAction("fundContract", [], "Contract funded with CELO", parseEther(fundAmount))}>Fund CELO</Button>
-                      <Button className="flex-1 bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30" variant="outline" onClick={() => {
-                        const token = tokens.find(t => t.symbol === "USDm") || tokens[0]
-                        if (token) handleAction("transfer", [proxyAddress, parseUnits(fundAmount, 18)], `Contract funded with ${token.symbol}`, undefined, ERC20_ABI, token.address)
-                      }}>Fund stable</Button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button className="w-full bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30" variant="outline" onClick={() => handleAction("fundContract", [], "Contract funded with CELO", parseEther(fundAmount))}>Fund CELO</Button>
+                      {tokens.map(t => (
+                        <Button key={`fund-${t.symbol}`} className="w-full bg-blue-600/20 text-blue-400 border-blue-600/30 hover:bg-blue-600/30" variant="outline" onClick={() => {
+                          handleAction("transfer", [proxyAddress, parseUnits(fundAmount, 18)], `Contract funded with ${t.symbol}`, undefined, ERC20_ABI, t.address)
+                        }}>Fund {t.symbol}</Button>
+                      ))}
                     </div>
                   </div>
                 </CardContent>

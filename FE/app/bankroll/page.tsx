@@ -25,7 +25,8 @@ const BANKROLL_ABI = [
 
 const ERC20_ABI = [
   { "type": "function", "name": "approve", "stateMutability": "nonpayable", "inputs": [{ "type": "address", "name": "spender" }, { "type": "uint256", "name": "amount" }], "outputs": [{ "type": "bool" }] },
-  { "type": "function", "name": "allowance", "stateMutability": "view", "inputs": [{ "type": "address", "name": "owner" }, { "type": "address", "name": "spender" }], "outputs": [{ "type": "uint256" }] }
+  { "type": "function", "name": "allowance", "stateMutability": "view", "inputs": [{ "type": "address", "name": "owner" }, { "type": "address", "name": "spender" }], "outputs": [{ "type": "uint256" }] },
+  { "type": "function", "name": "balanceOf", "stateMutability": "view", "inputs": [{ "name": "account", "type": "address" }], "outputs": [{ "type": "uint256" }] }
 ] as const
 
 export default function BankrollPage() {
@@ -48,9 +49,18 @@ export default function BankrollPage() {
   const { data: tokenDecimals } = useReadContract({ address: proxyAddress, abi: BANKROLL_ABI, functionName: 'tokenDecimals', args: [tokenAddress as `0x${string}`], query: { enabled: !!proxyAddress && selectedAsset !== "CELO" } })
   const { data: allowance, refetch: refetchAllowance } = useReadContract({ address: tokenAddress as `0x${string}`, abi: ERC20_ABI, functionName: 'allowance', args: address && proxyAddress ? [address, proxyAddress] : undefined, query: { enabled: !!address && !!proxyAddress && selectedAsset !== "CELO" } })
   
-  const { data: userWalletBalance } = useBalance({ address, token: selectedAsset === "CELO" ? undefined : tokenAddress as `0x${string}`, query: { enabled: !!address } } as any)
+  const { data: celoWalletBalance } = useBalance({ address, query: { enabled: !!address && selectedAsset === "CELO" } })
+  const { data: erc20WalletBalance } = useReadContract({ address: tokenAddress as `0x${string}`, abi: ERC20_ABI, functionName: 'balanceOf', args: address ? [address] : undefined, query: { enabled: !!address && selectedAsset !== "CELO" } })
 
   const decimals = useMemo(() => selectedAsset === "CELO" ? 18 : (tokenDecimals || 18), [selectedAsset, tokenDecimals])
+  
+  const userWalletBalance = useMemo(() => {
+    if (selectedAsset === "CELO") {
+      return celoWalletBalance ? { value: celoWalletBalance.value, decimals: celoWalletBalance.decimals } : undefined
+    } else {
+      return erc20WalletBalance !== undefined ? { value: erc20WalletBalance as bigint, decimals: Number(decimals) } : undefined
+    }
+  }, [selectedAsset, celoWalletBalance, erc20WalletBalance, decimals])
   
   const poolBalance = useMemo(() => stats ? (stats as any)[2] : BigInt(0), [stats])
   const poolVolume = useMemo(() => stats ? (stats as any)[1] : BigInt(0), [stats])
