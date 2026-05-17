@@ -103,7 +103,7 @@ export default function BankrollPage() {
         abi: BANKROLL_ABI,
         functionName: "depositBankroll",
         args: [tokenAddress as `0x${string}`, parsedAmount],
-        value: selectedAsset === "CELO" ? parsedAmount : undefined
+        value: selectedAsset === "CELO" ? parsedAmount : BigInt(0)
       })
       await publicClient?.waitForTransactionReceipt({ hash })
       toast.success("Deposit successful! You are now part of the House.")
