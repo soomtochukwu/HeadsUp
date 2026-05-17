@@ -73,6 +73,30 @@ const BankrollRow = ({ symbol, tokenAddress, proxyAddress, isCorrectChain }: { s
   )
 }
 
+const TokenActionButton = ({ token, actionType, amount, proxyAddress, handleAction, className }: { token: { symbol: string, address: string }, actionType: 'fund' | 'withdraw', amount: string, proxyAddress?: string, handleAction: Function, className?: string }) => {
+  const { data: decimals } = useReadContract({
+    address: token.address as `0x${string}`,
+    abi: ERC20_BALANCE_ABI,
+    functionName: 'decimals',
+    query: { enabled: !!token.address, staleTime: Infinity }
+  })
+
+  const onClick = () => {
+    const dec = decimals || (token.symbol === "USDT" || token.symbol === "USDC" ? 6 : 18)
+    if (actionType === 'fund') {
+      handleAction("transfer", [proxyAddress, parseUnits(amount || "0", dec as number)], `Contract funded with ${token.symbol}`, undefined, ERC20_ABI, token.address)
+    } else {
+      handleAction("withdrawToken", [token.address, parseUnits(amount || "0", dec as number)], `${token.symbol} withdrawn`)
+    }
+  }
+
+  return (
+    <Button key={`${actionType}-${token.symbol}`} className={className} variant="outline" onClick={onClick}>
+      {actionType === 'fund' ? `Fund ${token.symbol}` : token.symbol}
+    </Button>
+  )
+}
+
 export default function AdminPage() {
   const { address, isConnected, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
@@ -300,11 +324,17 @@ export default function AdminPage() {
                   <div className="space-y-2">
                     <Input placeholder="0.00" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} className="bg-background/50 h-10 font-mono" />
                     <div className="grid grid-cols-2 gap-2">
-                      <Button className="w-full bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30" variant="outline" onClick={() => handleAction("fundContract", [], "Contract funded with CELO", parseEther(fundAmount))}>Fund CELO</Button>
+                      <Button className="w-full bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30" variant="outline" onClick={() => handleAction("fundContract", [], "Contract funded with CELO", parseEther(fundAmount || "0"))}>Fund CELO</Button>
                       {tokens.map(t => (
-                        <Button key={`fund-${t.symbol}`} className="w-full bg-blue-600/20 text-blue-400 border-blue-600/30 hover:bg-blue-600/30" variant="outline" onClick={() => {
-                          handleAction("transfer", [proxyAddress, parseUnits(fundAmount, 18)], `Contract funded with ${t.symbol}`, undefined, ERC20_ABI, t.address)
-                        }}>Fund {t.symbol}</Button>
+                        <TokenActionButton 
+                          key={`fund-${t.symbol}`}
+                          token={t}
+                          actionType="fund"
+                          amount={fundAmount}
+                          proxyAddress={proxyAddress}
+                          handleAction={handleAction}
+                          className="w-full bg-blue-600/20 text-blue-400 border-blue-600/30 hover:bg-blue-600/30"
+                        />
                       ))}
                     </div>
                   </div>
@@ -317,9 +347,16 @@ export default function AdminPage() {
                   <div className="flex flex-col gap-4">
                     <Input placeholder="0.00" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="bg-background/50 h-12 font-mono text-lg" />
                     <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                      <Button variant="outline" className="h-10 font-bold border-gold/30 hover:bg-gold/10 text-xs" onClick={() => handleAction("withdrawCELO", [parseEther(withdrawAmount)], "CELO withdrawn")}>CELO</Button>
+                      <Button variant="outline" className="h-10 font-bold border-gold/30 hover:bg-gold/10 text-xs" onClick={() => handleAction("withdrawCELO", [parseEther(withdrawAmount || "0")], "CELO withdrawn")}>CELO</Button>
                       {tokens.map(t => (
-                        <Button key={t.symbol} variant="outline" className="h-10 font-bold border-gold/30 hover:bg-gold/10 text-xs" onClick={() => handleAction("withdrawToken", [t.address, parseUnits(withdrawAmount, 18)], `${t.symbol} withdrawn`)}>{t.symbol}</Button>
+                        <TokenActionButton 
+                          key={`withdraw-${t.symbol}`}
+                          token={t}
+                          actionType="withdraw"
+                          amount={withdrawAmount}
+                          handleAction={handleAction}
+                          className="h-10 font-bold border-gold/30 hover:bg-gold/10 text-xs"
+                        />
                       ))}
                     </div>
                   </div>
