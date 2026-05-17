@@ -26,7 +26,8 @@ const BANKROLL_ABI = [
 const ERC20_ABI = [
   { "type": "function", "name": "approve", "stateMutability": "nonpayable", "inputs": [{ "type": "address", "name": "spender" }, { "type": "uint256", "name": "amount" }], "outputs": [{ "type": "bool" }] },
   { "type": "function", "name": "allowance", "stateMutability": "view", "inputs": [{ "type": "address", "name": "owner" }, { "type": "address", "name": "spender" }], "outputs": [{ "type": "uint256" }] },
-  { "type": "function", "name": "balanceOf", "stateMutability": "view", "inputs": [{ "name": "account", "type": "address" }], "outputs": [{ "type": "uint256" }] }
+  { "type": "function", "name": "balanceOf", "stateMutability": "view", "inputs": [{ "name": "account", "type": "address" }], "outputs": [{ "type": "uint256" }] },
+  { "type": "function", "name": "decimals", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "uint8" }] }
 ] as const
 
 export default function BankrollPage() {
@@ -46,7 +47,7 @@ export default function BankrollPage() {
   const { data: stats, refetch: refetchStats } = useReadContract({ address: proxyAddress, abi: BANKROLL_ABI, functionName: 'getContractStats', args: [tokenAddress as `0x${string}`], query: { enabled: !!proxyAddress } })
   const { data: totalShares, refetch: refetchTotalShares } = useReadContract({ address: proxyAddress, abi: BANKROLL_ABI, functionName: 'totalSharesToken', args: [tokenAddress as `0x${string}`], query: { enabled: !!proxyAddress } })
   const { data: userShares, refetch: refetchUserShares } = useReadContract({ address: proxyAddress, abi: BANKROLL_ABI, functionName: 'userSharesToken', args: [tokenAddress as `0x${string}`, address as `0x${string}`], query: { enabled: !!proxyAddress && !!address } })
-  const { data: tokenDecimals } = useReadContract({ address: proxyAddress, abi: BANKROLL_ABI, functionName: 'tokenDecimals', args: [tokenAddress as `0x${string}`], query: { enabled: !!proxyAddress && selectedAsset !== "CELO" } })
+  const { data: tokenDecimals } = useReadContract({ address: tokenAddress as `0x${string}`, abi: ERC20_ABI, functionName: 'decimals', query: { enabled: !!tokenAddress && selectedAsset !== "CELO" } })
   const { data: allowance, refetch: refetchAllowance } = useReadContract({ address: tokenAddress as `0x${string}`, abi: ERC20_ABI, functionName: 'allowance', args: address && proxyAddress ? [address, proxyAddress] : undefined, query: { enabled: !!address && !!proxyAddress && selectedAsset !== "CELO" } })
   
   const { data: celoWalletBalance } = useBalance({ address, query: { enabled: !!address && selectedAsset === "CELO" } })
