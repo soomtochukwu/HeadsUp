@@ -14,6 +14,8 @@ import { FLIPEN_ADDRESSES, TOKEN_ADDRESSES } from "@/contracts/addresses"
 import { toast } from "sonner"
 import { Wallet, TrendingUp, ArrowDownCircle, ArrowUpCircle, Info, Loader2, Landmark, Percent } from "lucide-react"
 
+import { useTokenData } from "@/hooks/useTokenData"
+
 const BANKROLL_ABI = [
   { "type": "function", "name": "totalSharesToken", "stateMutability": "view", "inputs": [{ "name": "token", "type": "address" }], "outputs": [{ "type": "uint256" }] },
   { "type": "function", "name": "userSharesToken", "stateMutability": "view", "inputs": [{ "name": "token", "type": "address" }, { "name": "user", "type": "address" }], "outputs": [{ "type": "uint256" }] },
@@ -40,28 +42,14 @@ export default function BankrollPage() {
   const [isProcessing, setIsActioning] = useState(false)
 
   const activeChainId = chainId || 42220
-  const proxyAddress = FLIPEN_ADDRESSES[activeChainId]
-  const tokenAddress = selectedAsset === "CELO" ? "0x0000000000000000000000000000000000000000" : TOKEN_ADDRESSES[activeChainId]?.[selectedAsset]
+
+  // Use centralized token data
+  const { proxyAddress, tokenAddress, decimals, userWalletBalance, refetchUserBalance, allowance, refetchAllowance } = useTokenData(selectedAsset)
 
   // Contract Data
   const { data: stats, refetch: refetchStats } = useReadContract({ address: proxyAddress, abi: BANKROLL_ABI, functionName: 'getContractStats', args: [tokenAddress as `0x${string}`], query: { enabled: !!proxyAddress } })
   const { data: totalShares, refetch: refetchTotalShares } = useReadContract({ address: proxyAddress, abi: BANKROLL_ABI, functionName: 'totalSharesToken', args: [tokenAddress as `0x${string}`], query: { enabled: !!proxyAddress } })
   const { data: userShares, refetch: refetchUserShares } = useReadContract({ address: proxyAddress, abi: BANKROLL_ABI, functionName: 'userSharesToken', args: [tokenAddress as `0x${string}`, address as `0x${string}`], query: { enabled: !!proxyAddress && !!address } })
-  const { data: tokenDecimals } = useReadContract({ address: tokenAddress as `0x${string}`, abi: ERC20_ABI, functionName: 'decimals', query: { enabled: !!tokenAddress && selectedAsset !== "CELO" } })
-  const { data: allowance, refetch: refetchAllowance } = useReadContract({ address: tokenAddress as `0x${string}`, abi: ERC20_ABI, functionName: 'allowance', args: address && proxyAddress ? [address, proxyAddress] : undefined, query: { enabled: !!address && !!proxyAddress && selectedAsset !== "CELO" } })
-  
-  const { data: celoWalletBalance } = useBalance({ address, query: { enabled: !!address && selectedAsset === "CELO" } })
-  const { data: erc20WalletBalance } = useReadContract({ address: tokenAddress as `0x${string}`, abi: ERC20_ABI, functionName: 'balanceOf', args: address ? [address] : undefined, query: { enabled: !!address && selectedAsset !== "CELO" } })
-
-  const decimals = useMemo(() => selectedAsset === "CELO" ? 18 : (tokenDecimals || 18), [selectedAsset, tokenDecimals])
-  
-  const userWalletBalance = useMemo(() => {
-    if (selectedAsset === "CELO") {
-      return celoWalletBalance ? { value: celoWalletBalance.value, decimals: celoWalletBalance.decimals } : undefined
-    } else {
-      return erc20WalletBalance !== undefined ? { value: erc20WalletBalance as bigint, decimals: Number(decimals) } : undefined
-    }
-  }, [selectedAsset, celoWalletBalance, erc20WalletBalance, decimals])
   
   const poolBalance = useMemo(() => stats ? (stats as any)[2] : BigInt(0), [stats])
   const poolVolume = useMemo(() => stats ? (stats as any)[1] : BigInt(0), [stats])
@@ -110,6 +98,8 @@ export default function BankrollPage() {
       toast.success("Deposit successful! You are now part of the House.")
       setAmount("")
       refetchStats(); refetchTotalShares(); refetchUserShares();
+      refetchUserBalance();
+      if (selectedAsset !== "CELO") refetchAllowance();
     } catch (e: any) {
       toast.error(e.shortMessage || "Deposit failed")
     } finally {
@@ -131,6 +121,7 @@ export default function BankrollPage() {
       await publicClient?.waitForTransactionReceipt({ hash })
       toast.success("Withdrawal successful!")
       refetchStats(); refetchTotalShares(); refetchUserShares();
+      refetchUserBalance();
     } catch (e: any) {
       toast.error(e.shortMessage || "Withdrawal failed")
     } finally {

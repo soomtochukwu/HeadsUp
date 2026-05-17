@@ -14,15 +14,17 @@ import { toast } from "sonner"
 import Image from "next/image"
 
 
-// Import ABIs
-import SEPOLIA_ABI from "@/contracts/sepolia-abi.json"
-import MAINNET_ABI from "@/contracts/celo-abi.json"
+import { useTokenData } from "@/hooks/useTokenData"
 
 const ERC20_ABI = [
   { "type": "function", "name": "approve", "stateMutability": "nonpayable", "inputs": [{ "type": "address", "name": "spender" }, { "type": "uint256", "name": "amount" }], "outputs": [{ "type": "bool" }] },
   { "type": "function", "name": "allowance", "stateMutability": "view", "inputs": [{ "type": "address", "name": "owner" }, { "type": "address", "name": "spender" }], "outputs": [{ "type": "uint256" }] },
   { "type": "function", "name": "balanceOf", "stateMutability": "view", "inputs": [{ "name": "account", "type": "address" }], "outputs": [{ "type": "uint256" }] },
 ] as const
+
+// Import ABIs
+import SEPOLIA_ABI from "@/contracts/sepolia-abi.json"
+import MAINNET_ABI from "@/contracts/celo-abi.json"
 
 // No longer need hardcoded gas limit since contract v6.1.0 natively supports
 // MiniPay's gas estimation without reverting.
@@ -38,25 +40,11 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
   const [gameResult, setGameResult] = useState<{ result: "heads" | "tails", won: boolean, payout: string } | null>(null)
   const [catchTimer, setCatchTimer] = useState(0)
 
-  // Dynamic Resource Selection
+  // Use centralized token data
+  const { proxyAddress, tokenAddress, decimals, userWalletBalance, refetchUserBalance, contractBankroll, allowance, refetchAllowance } = useTokenData(selectedAsset)
+
   const activeChainId = chainId || 42220
-  const proxyAddress = FLIPEN_ADDRESSES[activeChainId]
   const contractABI = activeChainId === 42220 ? MAINNET_ABI : SEPOLIA_ABI
-  const tokenAddress = TOKEN_ADDRESSES[activeChainId]?.[selectedAsset]
-
-  // READ TOKEN DECIMALS
-  const { data: tokenDecimals } = useReadContract({
-    address: proxyAddress,
-    abi: contractABI as any,
-    functionName: 'tokenDecimals',
-    args: tokenAddress ? [tokenAddress] : undefined,
-    query: { enabled: !!proxyAddress && !!tokenAddress && selectedAsset !== "CELO" }
-  })
-
-  const decimals = useMemo(() => {
-    if (selectedAsset === "CELO") return 18
-    return (tokenDecimals as number) || 18
-  }, [selectedAsset, tokenDecimals])
 
   // READ LIMITS FROM CONTRACT
   const { data: contractLimits } = useReadContract({
@@ -74,29 +62,6 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
 
   const formattedMin = parseFloat(formatUnits(minBet, 18))
   const formattedMax = parseFloat(formatUnits(maxBet, 18))
-
-  // User Balances
-  const { data: celoBalance } = useBalance({ address, query: { enabled: !!address, refetchInterval: 10000 } })
-  const { data: tokenBalanceRaw } = useReadContract({
-    address: tokenAddress,
-    abi: ERC20_ABI,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    query: { enabled: !!address && !!tokenAddress, refetchInterval: 10000 }
-  })
-
-  // CONTRACT BANKROLL
-  const { data: contractCeloBalance } = useBalance({ 
-    address: proxyAddress, 
-    query: { enabled: !!proxyAddress, refetchInterval: 15000 } 
-  })
-  const { data: contractTokenBalanceRaw } = useReadContract({
-    address: tokenAddress,
-    abi: ERC20_ABI,
-    functionName: 'balanceOf',
-    args: proxyAddress ? [proxyAddress] : undefined,
-    query: { enabled: !!tokenAddress && !!proxyAddress, refetchInterval: 15000 }
-  })
 
   const { writeContractAsync } = useWriteContract()
   const { sendTransactionAsync } = useSendTransaction()
@@ -143,14 +108,6 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
     return parseFloat(formatUnits(estimatedGas, 18)).toFixed(5)
   }, [estimatedGas])
 
-  const { data: allowance, refetch: refetchAllowance } = useReadContract({
-    address: tokenAddress,
-    abi: ERC20_ABI,
-    functionName: "allowance",
-    args: address && proxyAddress ? [address, proxyAddress] : undefined,
-    query: { enabled: !!address && !!tokenAddress && !!proxyAddress && selectedAsset !== "CELO" }
-  })
-
   const formatValue = (val: any, dec = 18) => {
     if (val === undefined || val === null) return 0
     if (typeof val === 'object' && val.value !== undefined) return parseFloat(formatUnits(val.value, val.decimals))
@@ -158,9 +115,8 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
   }
 
   const bankroll = useMemo(() => {
-    if (selectedAsset === "CELO") return formatValue(contractCeloBalance)
-    return formatValue(contractTokenBalanceRaw, decimals)
-  }, [selectedAsset, contractCeloBalance, contractTokenBalanceRaw, decimals])
+    return formatValue(contractBankroll, decimals)
+  }, [contractBankroll, decimals])
 
   const canAffordPayout = useMemo(() => {
     const potentialPayout = betAmount[0] * 1.95
@@ -172,19 +128,25 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
   const currentAssets = useMemo(() => {
     const formatStr = (val: any, dec = 18) => formatValue(val, dec).toFixed(4)
     const availableTokens = TOKEN_ADDRESSES[activeChainId] || {}
-    
+
+    // We only actively fetch the balance of the selected asset to save RPC calls.
+    // So for non-selected assets, the balance might be stale or 0.
+    // The selected asset will always show the correct, live balance.
+    const getBalanceFor = (symbol: string) => {
+      if (symbol === selectedAsset) return formatStr(userWalletBalance, decimals)
+      return "---"
+    }
+
     const assets = [
-      { symbol: "CELO", name: "Celo", icon: "◊", balance: formatStr(celoBalance), network: chain?.name || "Celo" }
+      { symbol: "CELO", name: "Celo", icon: "◊", balance: getBalanceFor("CELO"), network: chain?.name || "Celo" }
     ]
 
-    // Only add tokens that have addresses for the current chain
-    if (availableTokens["USDm"]) assets.push({ symbol: "USDm", name: "USD Mento", icon: "$", balance: formatStr(tokenBalanceRaw), network: chain?.name || "Celo" })
-    if (availableTokens["USDC"]) assets.push({ symbol: "USDC", name: "USDC Native", icon: "Ⓒ", balance: formatStr(tokenBalanceRaw), network: chain?.name || "Celo" })
-    if (availableTokens["USDT"]) assets.push({ symbol: "USDT", name: "Tether", icon: "₮", balance: formatStr(tokenBalanceRaw), network: chain?.name || "Celo" })
+    if (availableTokens["USDm"]) assets.push({ symbol: "USDm", name: "USD Mento", icon: "$", balance: getBalanceFor("USDm"), network: chain?.name || "Celo" })
+    if (availableTokens["USDC"]) assets.push({ symbol: "USDC", name: "USDC Native", icon: "Ⓒ", balance: getBalanceFor("USDC"), network: chain?.name || "Celo" })
+    if (availableTokens["USDT"]) assets.push({ symbol: "USDT", name: "Tether", icon: "₮", balance: getBalanceFor("USDT"), network: chain?.name || "Celo" })
 
     return assets
-  }, [celoBalance, tokenBalanceRaw, chain, activeChainId, selectedAsset])
-
+  }, [userWalletBalance, decimals, chain, activeChainId, selectedAsset])
   const currentAsset = currentAssets.find(asset => asset.symbol === selectedAsset) || currentAssets[0]
 
   // Cooldown timer for "Catch" button
