@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { Header } from "@/components/header"
-import { AnimatedBackground } from "@/components/animated-background"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -132,7 +131,6 @@ export default function BankrollPage() {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="golden-flip-theme">
       <div className="min-h-screen bg-background text-foreground relative flex flex-col h-[100dvh] overflow-hidden lg:pl-16">
-        <AnimatedBackground />
         
         <div className="relative z-10 flex flex-col h-full">
           <Header balance="---" setIsCommentsSidebarOpen={() => {}} selectedAsset={selectedAsset} />

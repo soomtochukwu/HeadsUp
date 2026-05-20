@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { Header } from "@/components/header"
 import { GameHistory } from "@/components/game-history"
-import { AnimatedBackground } from "@/components/animated-background"
 import { CommentsSidebar } from "@/components/comments-sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
 import { useAccount, useBalance } from "wagmi"
@@ -24,7 +23,6 @@ export default function HistoryPage() {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="golden-flip-theme">
       <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background text-foreground relative transition-colors duration-300 flex flex-col">
-        <AnimatedBackground />
 
         <CommentsSidebar
           isOpen={isCommentsSidebarOpen}
