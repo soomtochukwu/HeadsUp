@@ -275,7 +275,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
         const amount = parseUnits(betAmount[0].toString(), decimals)
         if (!allowance || (allowance as bigint) < amount) {
           toast.info(`Approving ${selectedAsset}...`, { closeButton: true })
-          await writeContractAsync({
+          const approveHash = await writeContractAsync({
             address: tokenAddress!,
             abi: ERC20_ABI,
             functionName: "approve",
@@ -283,7 +283,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
             ...(feeCurrency ? { feeCurrency } : {}),
             ...(isMiniPayEnv ? { gas: BigInt(150000) } : {}),
           } as any)
-          await new Promise(resolve => setTimeout(resolve, 4000))
+          await publicClient.waitForTransactionReceipt({ hash: approveHash })
           await refetchAllowance()
         }
         hash = await writeContractAsync({
