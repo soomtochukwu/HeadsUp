@@ -53,9 +53,9 @@ async function main() {
 
   const ASSETS = [
     { symbol: "CELO", address: ethers.ZeroAddress, decimals: 18, amountRaw: "0.1" },
-    { symbol: "USDC", address: "0xcebA9300f2b948710d2653dD7B07f33A8B32118C", decimals: 6, amountRaw: "1.0" },
-    { symbol: "USDT", address: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e", decimals: 6, amountRaw: "1.0" },
-    { symbol: "USDm", address: "0x765DE816845861e75A25fCA122bb6898B8B1282a", decimals: 18, amountRaw: "1.0" }
+    { symbol: "USDC", address: "0xcebA9300f2b948710d2653dD7B07f33A8B32118C", decimals: 6, amountRaw: "0.01" },
+    { symbol: "USDT", address: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e", decimals: 6, amountRaw: "0.01" },
+    { symbol: "cUSD", address: "0x765DE816845861e75A25fCA122bb6898B8B1282a", decimals: 18, amountRaw: "0.01" }
   ];
 
   console.log("[*] Executing Pre-Flight Max-Approvals...");
@@ -131,8 +131,45 @@ async function main() {
         for (const asset of ASSETS) {
           try {
             const betAmount = ethers.parseUnits(asset.amountRaw, asset.decimals);
-            const topUpTarget = betAmount * 10n; // Target top-up for players (10 bets)
+            const topUpTarget = betAmount * 5n; // Target top-up for players (5 bets)
             const minBalance = betAmount * 2n; // If below 2 bets, top them up
+
+            // 0. Seed contract bankroll if empty
+            let contractAvailable: bigint = 0n;
+            const locked = BigInt(await adminFlipen.lockedFundsToken(asset.address));
+            if (asset.address === ethers.ZeroAddress) {
+              const cBal = BigInt(await ethers.provider.getBalance(proxyAddress));
+              contractAvailable = cBal > locked ? cBal - locked : 0n;
+            } else {
+              const token = new ethers.Contract(asset.address, ERC20_ABI, admin);
+              const cBal = BigInt(await token.balanceOf(proxyAddress));
+              contractAvailable = cBal > locked ? cBal - locked : 0n;
+            }
+
+            if (contractAvailable < betAmount * 5n) {
+               // Contract needs bankroll. Let's send 10 bets.
+               const seedAmount = betAmount * 10n;
+               let adminBal: bigint;
+               if (asset.address === ethers.ZeroAddress) {
+                 adminBal = BigInt(await ethers.provider.getBalance(admin.address));
+               } else {
+                 const token = new ethers.Contract(asset.address, ERC20_ABI, admin);
+                 adminBal = BigInt(await token.balanceOf(admin.address));
+               }
+               if (adminBal > seedAmount) {
+                  console.log(`[Admin] Seeding contract bankroll with ${ethers.formatUnits(seedAmount, asset.decimals)} ${asset.symbol}...`);
+                  if (asset.address === ethers.ZeroAddress) {
+                     const tx = await admin.sendTransaction({ to: proxyAddress, value: seedAmount });
+                     await tx.wait(1);
+                  } else {
+                     const token = new ethers.Contract(asset.address, ERC20_ABI, admin);
+                     const tx = await token.transfer(proxyAddress, seedAmount);
+                     await tx.wait(1);
+                  }
+                  // Refresh contractAvailable
+                  contractAvailable += seedAmount;
+               }
+            }
 
             // 1. Check which players need funds
             const playersToFund = [];
@@ -170,22 +207,10 @@ async function main() {
                // Admin needs to withdraw from contract
                const shortfall = totalNeeded - adminAvailable;
                // Withdraw shortfall + buffer so we don't hit the contract every time
-               const withdrawAmount = shortfall + (topUpTarget * 10n);
+               const withdrawAmount = shortfall + (topUpTarget * 5n);
                
-               // Check if contract has enough
-               let contractAvailable: bigint = 0n;
-               const locked = BigInt(await adminFlipen.lockedFundsToken(asset.address));
-               if (asset.address === ethers.ZeroAddress) {
-                 const cBal = BigInt(await ethers.provider.getBalance(proxyAddress));
-                 contractAvailable = cBal > locked ? cBal - locked : 0n;
-               } else {
-                 const token = new ethers.Contract(asset.address, ERC20_ABI, admin);
-                 const cBal = BigInt(await token.balanceOf(proxyAddress));
-                 contractAvailable = cBal > locked ? cBal - locked : 0n;
-               }
-
-               // Don't drain contract completely, ensure at least 20x betAmount is left for payouts
-               const minContractBuffer = betAmount * 20n;
+               // Don't drain contract completely, ensure at least 10x betAmount is left for payouts
+               const minContractBuffer = betAmount * 10n;
                let safeWithdraw: bigint = contractAvailable > minContractBuffer ? contractAvailable - minContractBuffer : 0n;
 
                if (safeWithdraw > 0n) {
