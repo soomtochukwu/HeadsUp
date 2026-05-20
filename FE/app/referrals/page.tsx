@@ -37,8 +37,8 @@ export default function ReferralsPage() {
     const { data: earnings } = useReadContract({
       address: proxyAddress,
       abi: contractABI as any,
-      functionName: symbol === "cUSD" || symbol === "USDm" ? "referralEarningsCUSD" : "referralEarningsToken",
-      args: symbol === "cUSD" || symbol === "USDm" ? [address] : [address, tokenAddress],
+      functionName: symbol === "cUSD" ? "referralEarningsCUSD" : "referralEarningsToken",
+      args: symbol === "cUSD" ? [address] : [address, tokenAddress],
       query: { enabled: !!address && !!proxyAddress }
     })
 

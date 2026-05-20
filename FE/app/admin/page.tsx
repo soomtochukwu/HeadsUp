@@ -308,7 +308,7 @@ export default function AdminPage() {
                   <div className="flex justify-between text-sm"><span className="text-muted-foreground">Minimum:</span><span className="font-bold text-gold">{betLimits && Array.isArray(betLimits) ? formatLimit(betLimits[0]) : "0.00"}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-muted-foreground">Maximum:</span><span className="font-bold text-gold">{betLimits && Array.isArray(betLimits) ? formatLimit(betLimits[1]) : "0.00"}</span></div>
                   <p className="text-[9px] text-muted-foreground leading-tight italic mt-2 opacity-70">
-                    * Limits apply to the base unit of all assets (CELO, USDm, USDC, etc.) via internal 18-decimal normalization.
+                    * Limits apply to the base unit of all assets (CELO, cUSD, USDC, etc.) via internal 18-decimal normalization.
                   </p>
                 </CardContent>
               </Card>

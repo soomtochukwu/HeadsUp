@@ -141,7 +141,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
       { symbol: "CELO", name: "Celo", icon: "◊", balance: getBalanceFor("CELO"), network: chain?.name || "Celo" }
     ]
 
-    if (availableTokens["USDm"]) assets.push({ symbol: "USDm", name: "USD Mento", icon: "$", balance: getBalanceFor("USDm"), network: chain?.name || "Celo" })
+    if (availableTokens["cUSD"]) assets.push({ symbol: "cUSD", name: "cUSD", icon: "$", balance: getBalanceFor("cUSD"), network: chain?.name || "Celo" })
     if (availableTokens["USDC"]) assets.push({ symbol: "USDC", name: "USDC Native", icon: "Ⓒ", balance: getBalanceFor("USDC"), network: chain?.name || "Celo" })
     if (availableTokens["USDT"]) assets.push({ symbol: "USDT", name: "Tether", icon: "₮", balance: getBalanceFor("USDT"), network: chain?.name || "Celo" })
 
