@@ -272,8 +272,9 @@ async function main() {
     const id = `T${idx}-${signer.address.substring(0, 6)}`;
 
     while (!isShuttingDown) {
+      let asset: any;
       try {
-        const asset = ASSETS[Math.floor(Math.random() * ASSETS.length)];
+        asset = ASSETS[Math.floor(Math.random() * ASSETS.length)];
         const betAmount = ethers.parseUnits(asset.amountRaw, asset.decimals);
         const choice = Math.random() > 0.5 ? 1 : 0;
         
@@ -316,11 +317,31 @@ async function main() {
           }
         }
       } catch (e: any) {
-         // Quietly catch errors like insufficient funds to maintain thread speed
+         // Quietly catch expected concurrency errors to maintain thread speed
          const msg = e?.shortMessage || e?.message || "";
-         if (!msg.includes("insufficient funds") && !msg.includes("transfer amount exceeds balance")) {
-            console.log(`\x1b[33m[${id}] ERR\x1b[0m: ${msg.substring(0, 40)}...`);
+         if (msg.includes("insufficient funds") || 
+             msg.includes("transfer amount exceeds balance") ||
+             msg.includes("nonce too low") ||
+             msg.includes("replacement transaction underpriced")) {
+             // Silently absorb predictable rate-limit / state-lag errors
+             return; 
          }
+
+         // Extract the true reason for the revert
+         let reason = msg.split('\n')[0]; // Default to first line of error
+         if (e.revert?.name) {
+             reason = `CustomError(${e.revert.name})`;
+         } else if (e.reason) {
+             reason = `Reason: ${e.reason}`;
+         } else if (e.info?.error?.message) {
+             reason = `RPC Error: ${e.info.error.message}`;
+         } else {
+             const match = msg.match(/reverted with reason string '([^']+)'/);
+             if (match) reason = `Reason: ${match[1]}`;
+             else if (reason.length > 80) reason = reason.substring(0, 80) + "...";
+         }
+
+         console.log(`\x1b[33m[${id}] ERR (${asset ? asset.symbol : '?'})\x1b[0m: ${reason}`);
       }
       
       // Minimal delay between cycles to avoid rate limiting and allow block finality
