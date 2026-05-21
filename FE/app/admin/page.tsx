@@ -75,11 +75,19 @@ const BankrollRow = ({ symbol, tokenAddress, proxyAddress, isCorrectChain }: { s
   const available = (balance !== undefined && locked !== undefined) ? ((balance as bigint) > (locked as bigint) ? (balance as bigint) - (locked as bigint) : BigInt(0)) : balance;
 
   return (
-    <div className="flex justify-between items-end">
-      <span className="text-[10px] text-muted-foreground uppercase font-bold">{symbol} <span className="font-normal opacity-70">(Avail)</span></span>
-      <span className="text-2xl font-black text-gold">
-        {available !== undefined ? parseFloat(formatUnits(available as bigint, decimals || 18)).toFixed(4) : "---"}
-      </span>
+    <div className="flex justify-between items-center border-b border-white/5 pb-2 last:border-0 last:pb-0">
+      <div className="flex flex-col">
+        <span className="text-[10px] text-muted-foreground uppercase font-bold">{symbol}</span>
+        <span className="text-[10px] text-muted-foreground font-normal opacity-70">
+          Total: {balance !== undefined ? parseFloat(formatUnits(balance as bigint, decimals || 18)).toFixed(4) : "---"}
+        </span>
+      </div>
+      <div className="flex flex-col items-end">
+        <span className="text-[10px] text-muted-foreground uppercase font-bold text-green-400">Available</span>
+        <span className="text-xl font-black text-gold">
+          {available !== undefined ? parseFloat(formatUnits(available as bigint, decimals || 18)).toFixed(4) : "---"}
+        </span>
+      </div>
     </div>
   )
 }
@@ -305,7 +313,20 @@ export default function AdminPage() {
               <Card className="bg-card/80 border-gold/20 shadow-xl">
                 <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><Wallet className="w-3.5 h-3.5 text-gold" /> House Bankroll</CardTitle></CardHeader>
                 <CardContent className="space-y-4 max-h-[300px] overflow-y-auto">
-                  <div className="flex justify-between items-end"><span className="text-[10px] text-muted-foreground uppercase font-bold">CELO <span className="font-normal opacity-70">(Avail)</span></span><span className="text-2xl font-black text-gold">{celoBankroll ? parseFloat(formatUnits(((celoBankroll.value as bigint) > ((celoLocked as bigint) || BigInt(0)) ? (celoBankroll.value as bigint) - ((celoLocked as bigint) || BigInt(0)) : BigInt(0)), celoBankroll.decimals)).toFixed(4) : "---"}</span></div>
+                  <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-muted-foreground uppercase font-bold">CELO</span>
+                      <span className="text-[10px] text-muted-foreground font-normal opacity-70">
+                        Total: {celoBankroll ? parseFloat(formatUnits(celoBankroll.value as bigint, celoBankroll.decimals)).toFixed(4) : "---"}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-[10px] text-muted-foreground uppercase font-bold text-green-400">Available</span>
+                      <span className="text-xl font-black text-gold">
+                        {celoBankroll ? parseFloat(formatUnits(((celoBankroll.value as bigint) > ((celoLocked as bigint) || BigInt(0)) ? (celoBankroll.value as bigint) - ((celoLocked as bigint) || BigInt(0)) : BigInt(0)), celoBankroll.decimals)).toFixed(4) : "---"}
+                      </span>
+                    </div>
+                  </div>
                   {tokens.map(t => (
                     <BankrollRow 
                       key={t.symbol} 
