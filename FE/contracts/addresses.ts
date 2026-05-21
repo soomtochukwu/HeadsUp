@@ -1,5 +1,5 @@
 // Auto-generated file - Do not edit manually
-// Generated on: 2026-05-21T18:31:53.983Z
+// Generated on: 2026-05-21T18:36:07.261Z
 
 export const contractAddresses: any = {
   "sepolia": {
@@ -18,7 +18,7 @@ export const contractAddresses: any = {
     "deployer": "0x8a371e00cd51E2BE005B86EF73C5Ee9Ef6d23FeB",
     "messengerAddress": "0x9a82055d6C4Ad4C33734A22DbCD43FD8aE4bE097",
     "messengerImplementationAddress": "0x664431647b4Bff1bB0626bF77961ca17e233e28A",
-    "lastUpgradedAt": "2026-05-14T12:22:20.459Z"
+    "lastUpgradedAt": "2026-05-21T18:36:07.261Z"
   }
 };
 
