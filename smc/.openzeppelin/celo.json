@@ -3249,7 +3249,7 @@
             "label": "gameRequests",
             "offset": 0,
             "slot": "0",
-            "type": "t_mapping(t_uint256,t_struct(GameRequest)2167_storage)",
+            "type": "t_mapping(t_uint256,t_struct(GameRequest)3240_storage)",
             "contract": "FlipenStorage",
             "src": "contracts/lib/FlipenStorage.sol:62"
           },
@@ -3463,7 +3463,7 @@
             "label": "bool",
             "numberOfBytes": "1"
           },
-          "t_struct(InitializableStorage)167_storage": {
+          "t_struct(InitializableStorage)301_storage": {
             "label": "struct Initializable.InitializableStorage",
             "members": [
               {
@@ -3481,7 +3481,7 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(OwnableStorage)13_storage": {
+          "t_struct(OwnableStorage)100_storage": {
             "label": "struct OwnableUpgradeable.OwnableStorage",
             "members": [
               {
@@ -3493,7 +3493,7 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(PausableStorage)111_storage": {
+          "t_struct(PausableStorage)198_storage": {
             "label": "struct PausableUpgradeable.PausableStorage",
             "members": [
               {
@@ -3505,7 +3505,7 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(ReentrancyGuardStorage)445_storage": {
+          "t_struct(ReentrancyGuardStorage)836_storage": {
             "label": "struct ReentrancyGuardUpgradeable.ReentrancyGuardStorage",
             "members": [
               {
@@ -3529,7 +3529,7 @@
             "label": "uint256[]",
             "numberOfBytes": "32"
           },
-          "t_enum(GameStatus)2145": {
+          "t_enum(GameStatus)3218": {
             "label": "enum FlipenStorage.GameStatus",
             "members": [
               "PENDING",
@@ -3563,11 +3563,11 @@
             "label": "mapping(address => uint8)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint256,t_struct(GameRequest)2167_storage)": {
+          "t_mapping(t_uint256,t_struct(GameRequest)3240_storage)": {
             "label": "mapping(uint256 => struct FlipenStorage.GameRequest)",
             "numberOfBytes": "32"
           },
-          "t_struct(GameRequest)2167_storage": {
+          "t_struct(GameRequest)3240_storage": {
             "label": "struct FlipenStorage.GameRequest",
             "members": [
               {
@@ -3590,7 +3590,7 @@
               },
               {
                 "label": "status",
-                "type": "t_enum(GameStatus)2145",
+                "type": "t_enum(GameStatus)3218",
                 "offset": 1,
                 "slot": "2"
               },

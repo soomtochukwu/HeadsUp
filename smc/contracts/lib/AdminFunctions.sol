@@ -28,7 +28,52 @@ abstract contract AdminFunctions is
     }
 
     /**
+     * @dev Internal helper to forcefully cancel and refund recent pending games for a specific token
+     */
+    function _cancelPendingGames(address token, uint256 lookback) internal {
+        uint256 start = gameCounter > lookback ? gameCounter - lookback : 0;
+        for (uint256 i = gameCounter; i > start; i--) {
+            uint256 gameId = i - 1;
+            GameRequest storage game = gameRequests[gameId];
+            
+            if (game.status == GameStatus.PENDING && game.token == token) {
+                game.status = GameStatus.CANCELLED;
+                uint256 amount = game.amount;
+                
+                lockedFundsToken[token] -= amount;
+
+                if (token == address(0)) {
+                    (bool success, ) = payable(game.player).call{value: amount}("");
+                    require(success, "CELO refund failed");
+                } else {
+                    require(IERC20(token).transfer(game.player, amount), "Token refund failed");
+                }
+
+                emit GameCompleted(gameId, game.player, false, amount, token);
+            }
+        }
+    }
+
+    /**
      * @dev Withdraw CELO from contract (only bankroll/profit, not locked user bets)
+     * @param autoCancel If true, force cancels recent pending games to free up locked funds
+     * @param lookback Number of recent games to check for cancellation
+     */
+    function withdrawCELO(uint256 amount, bool autoCancel, uint256 lookback) external onlyOwner {
+        if (autoCancel) {
+            _cancelPendingGames(address(0), lookback);
+        }
+        
+        uint256 available = address(this).balance > lockedFundsToken[address(0)] ? address(this).balance - lockedFundsToken[address(0)] : 0;
+        require(amount <= available, "Insufficient available bankroll");
+        
+        (bool success, ) = payable(owner()).call{value: amount}("");
+        require(success, "Transfer failed");
+        emit FundsWithdrawn(owner(), address(0), amount);
+    }
+
+    /**
+     * @dev Original withdraw CELO logic (maintained for backward compatibility)
      */
     function withdrawCELO(uint256 amount) external onlyOwner {
         uint256 available = address(this).balance > lockedFundsToken[address(0)] ? address(this).balance - lockedFundsToken[address(0)] : 0;
@@ -37,6 +82,23 @@ abstract contract AdminFunctions is
         (bool success, ) = payable(owner()).call{value: amount}("");
         require(success, "Transfer failed");
         emit FundsWithdrawn(owner(), address(0), amount);
+    }
+
+    /**
+     * @dev Withdraw ERC20 tokens from contract with auto-cancel
+     */
+    function withdrawToken(address token, uint256 amount, bool autoCancel, uint256 lookback) external onlyOwner {
+        require(token != address(0), "Use withdrawCELO");
+        if (autoCancel) {
+            _cancelPendingGames(token, lookback);
+        }
+
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        uint256 available = balance > lockedFundsToken[token] ? balance - lockedFundsToken[token] : 0;
+        require(amount <= available, "Insufficient available token bankroll");
+        
+        require(IERC20(token).transfer(owner(), amount), "Transfer failed");
+        emit FundsWithdrawn(owner(), token, amount);
     }
 
     /**

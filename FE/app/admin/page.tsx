@@ -13,6 +13,7 @@ import { toast } from "sonner"
 import { ShieldAlert, ShieldCheck, Wallet, ArrowDownCircle, Settings, Play, Pause, AlertTriangle, RefreshCw, ArrowUpCircle } from "lucide-react"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import { isMiniPay } from "@/hooks/useAutoConnect"
+import { Checkbox } from "@/components/ui/checkbox"
 
 const ADMIN_ABI = [
   { "type": "function", "name": "owner", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "address" }] },
@@ -20,8 +21,9 @@ const ADMIN_ABI = [
   { "type": "function", "name": "getBetLimits", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "uint256", "name": "min" }, { "type": "uint256", "name": "max" }] },
   { "type": "function", "name": "pause", "stateMutability": "nonpayable", "inputs": [], "outputs": [] },
   { "type": "function", "name": "unpause", "stateMutability": "nonpayable", "inputs": [], "outputs": [] },
-  { "type": "function", "name": "withdrawCELO", "stateMutability": "nonpayable", "inputs": [{ "type": "uint256", "name": "amount" }], "outputs": [] },
-  { "type": "function", "name": "withdrawToken", "stateMutability": "nonpayable", "inputs": [{ "type": "address", "name": "token" }, { "type": "uint256", "name": "amount" }], "outputs": [] },
+  { "type": "function", "name": "withdrawCELO", "stateMutability": "nonpayable", "inputs": [{ "type": "uint256", "name": "amount" }, { "type": "bool", "name": "autoCancel" }, { "type": "uint256", "name": "lookback" }], "outputs": [] },
+  { "type": "function", "name": "withdrawToken", "stateMutability": "nonpayable", "inputs": [{ "type": "address", "name": "token" }, { "type": "uint256", "name": "amount" }, { "type": "bool", "name": "autoCancel" }, { "type": "uint256", "name": "lookback" }], "outputs": [] },
+  { "type": "function", "name": "lockedFundsToken", "stateMutability": "view", "inputs": [{ "type": "address", "name": "token" }], "outputs": [{ "type": "uint256" }] },
   { "type": "function", "name": "updateBetLimits", "stateMutability": "nonpayable", "inputs": [{ "type": "uint256", "name": "newMinBet" }, { "type": "uint256", "name": "newMaxBet" }], "outputs": [] },
   { "type": "function", "name": "fundContract", "stateMutability": "payable", "inputs": [], "outputs": [] },
   { "type": "function", "name": "cUSD", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "address" }] },
@@ -55,6 +57,14 @@ const BankrollRow = ({ symbol, tokenAddress, proxyAddress, isCorrectChain }: { s
     query: { enabled: !!proxyAddress && !!isCorrectChain, refetchInterval: 5000 }
   })
 
+  const { data: locked } = useReadContract({
+    address: proxyAddress as `0x${string}`,
+    abi: ADMIN_ABI,
+    functionName: 'lockedFundsToken',
+    args: [tokenAddress as `0x${string}`],
+    query: { enabled: !!proxyAddress && !!isCorrectChain, refetchInterval: 5000 }
+  })
+
   const { data: decimals } = useReadContract({
     address: tokenAddress as `0x${string}`,
     abi: ERC20_BALANCE_ABI,
@@ -62,11 +72,13 @@ const BankrollRow = ({ symbol, tokenAddress, proxyAddress, isCorrectChain }: { s
     query: { enabled: !!tokenAddress && !!isCorrectChain, staleTime: Infinity }
   })
   
+  const available = (balance !== undefined && locked !== undefined) ? ((balance as bigint) > (locked as bigint) ? (balance as bigint) - (locked as bigint) : BigInt(0)) : balance;
+
   return (
     <div className="flex justify-between items-end">
-      <span className="text-[10px] text-muted-foreground uppercase font-bold">{symbol}</span>
+      <span className="text-[10px] text-muted-foreground uppercase font-bold">{symbol} <span className="font-normal opacity-70">(Avail)</span></span>
       <span className="text-2xl font-black text-gold">
-        {balance !== undefined ? parseFloat(formatUnits(balance as bigint, decimals || 18)).toFixed(4) : "---"}
+        {available !== undefined ? parseFloat(formatUnits(available as bigint, decimals || 18)).toFixed(4) : "---"}
       </span>
     </div>
   )
@@ -103,6 +115,7 @@ export default function AdminPage() {
   const publicClient = usePublicClient()
 
   const [withdrawAmount, setWithdrawAmount] = useState("")
+  const [autoCancelPending, setAutoCancelPending] = useState(true)
   const [fundAmount, setFundAmount] = useState("")
   const [minBetInput, setMinBetInput] = useState("")
   const [maxBetInput, setMaxBetInput] = useState("")
@@ -162,6 +175,13 @@ export default function AdminPage() {
   }
 
   const { data: celoBankroll, refetch: refetchCelo } = useBalance({ address: proxyAddress, chainId: chainId, query: { enabled: !!isCorrectChain && !!proxyAddress, refetchInterval: 5000 } })
+  const { data: celoLocked, refetch: refetchCeloLocked } = useReadContract({
+    address: proxyAddress,
+    abi: ADMIN_ABI,
+    functionName: 'lockedFundsToken',
+    args: ['0x0000000000000000000000000000000000000000'],
+    query: { enabled: !!isCorrectChain && !!proxyAddress, refetchInterval: 5000 }
+  })
 
   const tokens = useMemo(() => {
     if (!chainId || !TOKEN_ADDRESSES[chainId]) return []
@@ -186,10 +206,11 @@ export default function AdminPage() {
       refetchReferralReward(),
       refetchBonusCELO(),
       refetchBonusCUSD(),
-      refetchCelo()
+      refetchCelo(),
+      refetchCeloLocked()
     ])
     setTimeout(() => setIsRefreshing(false), 1000)
-  }, [refetchOwner, refetchPaused, refetchLimits, refetchCusdAddr, refetchHouseEdge, refetchReferralReward, refetchBonusCELO, refetchBonusCUSD, refetchCelo])
+  }, [refetchOwner, refetchPaused, refetchLimits, refetchCusdAddr, refetchHouseEdge, refetchReferralReward, refetchBonusCELO, refetchBonusCUSD, refetchCelo, refetchCeloLocked])
 
   const handleAction = async (fn: string, args: any[], successMsg: string, value?: bigint, abiOverride?: any, targetAddress?: string) => {
     if (!proxyAddress) return
@@ -284,7 +305,7 @@ export default function AdminPage() {
               <Card className="bg-card/80 border-gold/20 shadow-xl">
                 <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><Wallet className="w-3.5 h-3.5 text-gold" /> House Bankroll</CardTitle></CardHeader>
                 <CardContent className="space-y-4 max-h-[300px] overflow-y-auto">
-                  <div className="flex justify-between items-end"><span className="text-[10px] text-muted-foreground uppercase font-bold">CELO</span><span className="text-2xl font-black text-gold">{celoBankroll ? parseFloat(formatUnits(celoBankroll.value, celoBankroll.decimals)).toFixed(4) : "---"}</span></div>
+                  <div className="flex justify-between items-end"><span className="text-[10px] text-muted-foreground uppercase font-bold">CELO <span className="font-normal opacity-70">(Avail)</span></span><span className="text-2xl font-black text-gold">{celoBankroll ? parseFloat(formatUnits(((celoBankroll.value as bigint) > ((celoLocked as bigint) || BigInt(0)) ? (celoBankroll.value as bigint) - ((celoLocked as bigint) || BigInt(0)) : BigInt(0)), celoBankroll.decimals)).toFixed(4) : "---"}</span></div>
                   {tokens.map(t => (
                     <BankrollRow 
                       key={t.symbol} 
@@ -340,16 +361,27 @@ export default function AdminPage() {
                 <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><ArrowDownCircle className="w-3.5 h-3.5 text-gold" /> Withdraw Profits</CardTitle></CardHeader>
                 <CardContent className="space-y-4 pt-2">
                   <div className="flex flex-col gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="autoCancel" checked={autoCancelPending} onCheckedChange={(v) => setAutoCancelPending(!!v)} className="border-gold/50 data-[state=checked]:bg-gold data-[state=checked]:text-black" />
+                      <label htmlFor="autoCancel" className="text-sm font-medium leading-none text-muted-foreground cursor-pointer select-none">
+                        Auto-cancel pending games before withdrawal
+                      </label>
+                    </div>
                     <Input placeholder="0.00" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="bg-background/50 h-12 font-mono text-lg" />
                     <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                      <Button variant="outline" className="h-10 font-bold border-gold/30 hover:bg-gold/10 text-xs" onClick={() => handleAction("withdrawCELO", [parseEther(withdrawAmount || "0")], "CELO withdrawn")}>CELO</Button>
+                      <Button variant="outline" className="h-10 font-bold border-gold/30 hover:bg-gold/10 text-xs" onClick={() => handleAction("withdrawCELO", [parseEther(withdrawAmount || "0"), autoCancelPending, BigInt(50)], "CELO withdrawn")}>CELO</Button>
                       {tokens.map(t => (
                         <TokenActionButton 
                           key={`withdraw-${t.symbol}`}
                           token={t}
                           actionType="withdraw"
                           amount={withdrawAmount}
-                          handleAction={handleAction}
+                          handleAction={(fn: string, args: any[], msg: string) => {
+                            if (fn === "withdrawToken") {
+                              args = [args[0], args[1], autoCancelPending, BigInt(50)]
+                            }
+                            handleAction(fn, args, msg)
+                          }}
                           className="h-10 font-bold border-gold/30 hover:bg-gold/10 text-xs"
                         />
                       ))}
