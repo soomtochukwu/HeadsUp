@@ -40,18 +40,40 @@ abstract contract AdminFunctions is
                 game.status = GameStatus.CANCELLED;
                 uint256 amount = game.amount;
                 
-                lockedFundsToken[token] -= amount;
+                if (lockedFundsToken[token] >= amount) {
+                    lockedFundsToken[token] -= amount;
+                } else {
+                    lockedFundsToken[token] = 0;
+                }
 
                 if (token == address(0)) {
-                    (bool success, ) = payable(game.player).call{value: amount}("");
-                    require(success, "CELO refund failed");
+                    payable(game.player).call{value: amount}("");
+                    // Ignore success to prevent malicious contracts from blocking cancellation
                 } else {
-                    require(IERC20(token).transfer(game.player, amount), "Token refund failed");
+                    // Ignore success to prevent malicious contracts from blocking cancellation
+                    try IERC20(token).transfer(game.player, amount) {} catch {}
                 }
 
                 emit GameCompleted(gameId, game.player, false, amount, token);
             }
         }
+    }
+
+    /**
+     * @dev Emergency function to forcefully cancel all pending games and unlock funds
+     * @param token Address of the token (address(0) for CELO)
+     * @param lookback Number of recent games to check
+     */
+    function emergencyCancelPendingGames(address token, uint256 lookback) external onlyOwner {
+        _cancelPendingGames(token, lookback);
+    }
+
+    /**
+     * @dev Emergency function to forcefully clear corrupted lockedFundsToken storage mapping state
+     * @param token Address of the token to clear the lock for
+     */
+    function emergencyClearLockedFunds(address token) external onlyOwner {
+        lockedFundsToken[token] = 0;
     }
 
     /**
