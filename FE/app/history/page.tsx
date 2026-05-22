@@ -1,27 +1,28 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Header } from "@/components/header"
 import { GameHistory } from "@/components/game-history"
 import { CommentsSidebar } from "@/components/comments-sidebar"
-import { ThemeProvider } from "@/components/theme-provider"
+
 import { useAccount, useBalance } from "wagmi"
 import { formatUnits } from "viem"
 
 export default function HistoryPage() {
-  const [selectedNetwork, setSelectedNetwork] = useState("celo")
-  const [chainID, setChainID] = useState<number>()
-  const { address, isConnected } = useAccount()
+  const { address, isConnected, chainId } = useAccount()
   const balanceResult = useBalance({
     address: address,
-    chainId: chainID,
+    chainId: chainId,
   })
-  const _balance = balanceResult.data ? formatUnits(balanceResult.data.value, balanceResult.data.decimals) : "0"
-  const [balance, setBalance] = useState(String(Number(_balance).toFixed(5)))
+  
+  const balance = useMemo(() => {
+    if (!balanceResult.data) return "0.0000"
+    return Number(formatUnits(balanceResult.data.value, balanceResult.data.decimals)).toFixed(4)
+  }, [balanceResult.data])
   const [isCommentsSidebarOpen, setIsCommentsSidebarOpen] = useState(false)
 
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="golden-flip-theme">
+    
       <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background text-foreground relative transition-colors duration-300 flex flex-col">
 
         <CommentsSidebar
@@ -50,6 +51,6 @@ export default function HistoryPage() {
           </main>
         </div>
       </div>
-    </ThemeProvider>
+    
   )
 }

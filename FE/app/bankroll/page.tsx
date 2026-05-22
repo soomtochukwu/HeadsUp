@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { Header } from "@/components/header"
-import { ThemeProvider } from "@/components/theme-provider"
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -129,7 +129,7 @@ export default function BankrollPage() {
   }
 
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="golden-flip-theme">
+    
       <div className="min-h-screen bg-background text-foreground relative flex flex-col h-[100dvh] overflow-hidden lg:pl-16">
         
         <div className="relative z-10 flex flex-col h-full">
@@ -312,7 +312,7 @@ export default function BankrollPage() {
           </main>
         </div>
       </div>
-    </ThemeProvider>
+    
   )
 }
 

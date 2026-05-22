@@ -1,10 +1,13 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
+import dynamic from "next/dynamic"
 import { Header } from "@/components/header"
 import { GameInterface } from "@/components/game-interface"
-import { StatsPanel } from "@/components/stats-panel"
-import { CommentsSidebar } from "@/components/comments-sidebar"
+
+// Lazy load heavy components
+const StatsPanel = dynamic(() => import("@/components/stats-panel").then(mod => mod.StatsPanel), { ssr: false })
+const CommentsSidebar = dynamic(() => import("@/components/comments-sidebar").then(mod => mod.CommentsSidebar), { ssr: false })
 import { ThemeProvider } from "@/components/theme-provider"
 import { useAccount, useBalance, useReadContract } from "wagmi"
 import { formatUnits } from "viem"
@@ -74,7 +77,7 @@ export default function GamePage() {
   }, [selectedAsset, celoBalance, tokenBalanceRaw])
 
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="golden-flip-theme">
+
       <div className="min-h-screen md:h-screen bg-gradient-to-br from-background via-muted/20 to-background text-foreground relative md:overflow-hidden transition-colors duration-300 flex flex-col h-[100dvh]">
         <CommentsSidebar isOpen={isCommentsSidebarOpen} setIsOpen={setIsCommentsSidebarOpen} isWalletConnected={isConnected} walletAddress={address || ""} />
         <div className="relative z-10 flex flex-col min-h-screen md:h-full">
@@ -95,6 +98,6 @@ export default function GamePage() {
           </main>
         </div>
       </div>
-    </ThemeProvider>
+
   )
 }

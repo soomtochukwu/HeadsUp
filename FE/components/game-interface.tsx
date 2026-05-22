@@ -12,6 +12,7 @@ import { parseEther, parseUnits, formatUnits, decodeEventLog, encodeFunctionData
 import { FLIPEN_ADDRESSES, TOKEN_ADDRESSES, getFeeCurrency } from "@/contracts/addresses"
 import { toast } from "sonner"
 import Image from "next/image"
+import { motion, AnimatePresence } from "framer-motion"
 
 
 import { useTokenData } from "@/hooks/useTokenData"
@@ -322,19 +323,35 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
         <div className="flex-1 flex flex-col space-y-6 md:space-y-4 lg:space-y-6 p-4 md:p-3 lg:p-6 lg:justify-evenly">
           
           {/* Main Display: Dynamic Asset Coin */}
-          <div className="flex justify-center py-4 lg:py-0 lg:flex-1 lg:items-center">
-            <div className={`relative w-40 h-40 lg:w-56 lg:h-56 xl:w-64 xl:h-64 rounded-full border-4 border-gold/40 flex items-center justify-center transition-all duration-500 shadow-[0_0_40px_rgba(218,165,32,0.3)] bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 ${gameState !== "IDLE" ? 'animate-pulse' : 'hover:scale-105'}`}>
+          <div className="flex justify-center py-4 lg:py-0 lg:flex-1 lg:items-center [perspective:1000px]">
+            <motion.div 
+              animate={
+                gameState === "COMMITTING" || gameState === "REVEALING" 
+                  ? { rotateX: [0, 360], scale: [1, 1.1, 1], y: [0, -20, 0] } 
+                  : { rotateX: 0, scale: 1, y: 0 }
+              }
+              transition={
+                gameState === "COMMITTING" || gameState === "REVEALING"
+                  ? { rotateX: { repeat: Infinity, duration: 0.6, ease: "linear" }, scale: { repeat: Infinity, duration: 0.6 }, y: { repeat: Infinity, duration: 0.6 } }
+                  : { type: "spring", stiffness: 200, damping: 20 }
+              }
+              whileHover={gameState === "IDLE" ? { scale: 1.05, rotateY: 10, rotateX: 10 } : {}}
+              className="relative w-40 h-40 lg:w-56 lg:h-56 xl:w-64 xl:h-64 rounded-full border-4 border-gold/40 flex items-center justify-center shadow-[0_0_40px_rgba(218,165,32,0.5)] bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 [transform-style:preserve-3d]"
+            >
               {/* Metallic Engraving Effect */}
-              <div className="absolute inset-2 rounded-full border border-black/10 shadow-inner" />
+              <div className="absolute inset-2 rounded-full border border-black/10 shadow-inner [backface-visibility:hidden]" />
               
-              <div className={`absolute inset-0 rounded-full ${gameState === "COMMITTING" || gameState === "REVEALING" ? 'animate-spin border-t-white/40 border-4' : ''}`} />
-              
-              <div className="relative flex flex-col items-center justify-center text-black drop-shadow-md">
+              <div className="relative flex flex-col items-center justify-center text-black drop-shadow-md [backface-visibility:hidden]">
                 {gameResult ? (
-                  <>
+                  <motion.div 
+                    initial={{ scale: 0 }} 
+                    animate={{ scale: 1 }} 
+                    transition={{ type: "spring", bounce: 0.5 }}
+                    className="flex flex-col items-center"
+                  >
                     <span className="text-5xl lg:text-7xl xl:text-8xl mb-1">{gameResult.result === "heads" ? "👑" : "💰"}</span>
                     <span className="text-[12px] lg:text-sm xl:text-base font-black uppercase tracking-widest opacity-80">{selectedAsset}</span>
-                  </>
+                  </motion.div>
                 ) : (
                   <>
                     <span className="text-2xl lg:text-4xl xl:text-5xl font-black tracking-tighter mb-0.5">{selectedAsset}</span>
@@ -343,7 +360,7 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
                   </>
                 )}
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {gameResult && (
@@ -374,8 +391,12 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
           {gameState === "IDLE" && !gameResult && (
             <div className="lg:flex-1 flex flex-col justify-center space-y-6 lg:space-y-8">
               <div className="grid grid-cols-2 gap-4 lg:gap-8 w-full max-w-sm lg:max-w-3xl xl:max-w-4xl mx-auto lg:flex-1">
-                <Button variant={selectedSide === "heads" ? "default" : "outline"} onClick={() => setSelectedSide("heads")} className={`h-20 lg:h-full ${selectedSide === "heads" ? 'bg-gold text-black border-gold shadow-[0_0_15px_rgba(218,165,32,0.3)]' : 'border-gold/30 hover:border-gold/60'}`}><div className="flex flex-col items-center justify-center h-full"><span className="text-2xl lg:text-5xl xl:text-6xl mb-1 lg:mb-2">👑</span><span className="font-bold lg:text-xl xl:text-2xl">HEADS</span></div></Button>
-                <Button variant={selectedSide === "tails" ? "default" : "outline"} onClick={() => setSelectedSide("tails")} className={`h-20 lg:h-full ${selectedSide === "tails" ? 'bg-gold text-black border-gold shadow-[0_0_15px_rgba(218,165,32,0.3)]' : 'border-gold/30 hover:border-gold/60'}`}><div className="flex flex-col items-center justify-center h-full"><span className="text-2xl lg:text-5xl xl:text-6xl mb-1 lg:mb-2">💰</span><span className="font-bold lg:text-xl xl:text-2xl">TAILS</span></div></Button>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="h-full">
+                  <Button variant={selectedSide === "heads" ? "default" : "outline"} onClick={() => setSelectedSide("heads")} className={`w-full h-20 lg:h-full ${selectedSide === "heads" ? 'bg-gold text-black border-gold shadow-[0_0_15px_rgba(218,165,32,0.3)]' : 'border-gold/30 hover:border-gold/60'}`}><div className="flex flex-col items-center justify-center h-full"><span className="text-2xl lg:text-5xl xl:text-6xl mb-1 lg:mb-2">👑</span><span className="font-bold lg:text-xl xl:text-2xl">HEADS</span></div></Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="h-full">
+                  <Button variant={selectedSide === "tails" ? "default" : "outline"} onClick={() => setSelectedSide("tails")} className={`w-full h-20 lg:h-full ${selectedSide === "tails" ? 'bg-gold text-black border-gold shadow-[0_0_15px_rgba(218,165,32,0.3)]' : 'border-gold/30 hover:border-gold/60'}`}><div className="flex flex-col items-center justify-center h-full"><span className="text-2xl lg:text-5xl xl:text-6xl mb-1 lg:mb-2">💰</span><span className="font-bold lg:text-xl xl:text-2xl">TAILS</span></div></Button>
+                </motion.div>
               </div>
 
               <Card className="bg-card/80 border-gold/20 w-full max-w-sm lg:max-w-3xl xl:max-w-4xl mx-auto p-4 lg:p-8 flex flex-col justify-center space-y-4 lg:space-y-8 shadow-xl lg:flex-1">
@@ -413,17 +434,19 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
               <p className="text-muted-foreground text-[10px] lg:text-sm font-bold uppercase tracking-widest px-4 opacity-60">{isMiniPayEnv ? "Transaction ready for signing" : "Wait for the block to confirm your destiny"}</p>
               
               <div className="w-full max-w-sm lg:max-w-md xl:max-w-lg mx-auto">
-                <Button 
-                  onClick={() => pendingGameId && resolveGame(pendingGameId)} 
-                  disabled={catchTimer > 0}
-                  className={`h-20 lg:h-24 w-full shadow-2xl text-xl lg:text-2xl font-black transition-all ${
-                    catchTimer > 0 
-                    ? 'bg-muted text-muted-foreground cursor-wait grayscale' 
-                    : 'bg-green-600 hover:bg-green-500 text-white hover:scale-[1.02] shadow-green-500/20'
-                  }`}
-                >
-                  {catchTimer > 0 ? `READY IN ${catchTimer}S` : 'CATCH THE COIN!'}
-                </Button>
+                <motion.div whileHover={catchTimer === 0 ? { scale: 1.02 } : {}} whileTap={catchTimer === 0 ? { scale: 0.98 } : {}}>
+                  <Button 
+                    onClick={() => pendingGameId && resolveGame(pendingGameId)} 
+                    disabled={catchTimer > 0}
+                    className={`h-20 lg:h-24 w-full shadow-2xl text-xl lg:text-2xl font-black transition-all ${
+                      catchTimer > 0 
+                      ? 'bg-muted text-muted-foreground cursor-wait grayscale' 
+                      : 'bg-green-600 hover:bg-green-500 text-white shadow-green-500/20'
+                    }`}
+                  >
+                    {catchTimer > 0 ? `READY IN ${catchTimer}S` : 'CATCH THE COIN!'}
+                  </Button>
+                </motion.div>
               </div>
             </div>
           )}
@@ -443,9 +466,11 @@ export function GameInterface({ selectedAsset, setSelectedAsset, isMiniPayEnv = 
           ) : !selectedSide ? (
             <Button disabled className="w-full h-16 lg:h-20 text-xl lg:text-2xl font-bold bg-muted/50 text-muted-foreground border border-gold/10">SELECT A SIDE</Button>
           ) : (
-            <Button onClick={flipCoin} className="w-full h-16 lg:h-20 text-xl lg:text-2xl font-black bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-black shadow-2xl shadow-gold/20 border-t border-white/20 transition-all active:scale-95">
-              <Coins className="mr-2 h-6 w-6 lg:h-8 lg:w-8" /> FLIP {betAmount[0].toFixed(2)} {selectedAsset}
-            </Button>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button onClick={flipCoin} className="w-full h-16 lg:h-20 text-xl lg:text-2xl font-black bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-black shadow-2xl shadow-gold/20 border-t border-white/20 transition-all">
+                <Coins className="mr-2 h-6 w-6 lg:h-8 lg:w-8" /> FLIP {betAmount[0].toFixed(2)} {selectedAsset}
+              </Button>
+            </motion.div>
           )}
         </div>
       )}
