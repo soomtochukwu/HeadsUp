@@ -121,7 +121,11 @@ abstract contract GameLogic is
         // Anti-manipulation: Must resolve within 250 blocks
         if (block.number > game.commitBlock + BLOCK_EXPIRATION) {
             game.status = GameStatus.EXPIRED;
-            lockedFundsToken[game.token] -= game.amount;
+            if (lockedFundsToken[game.token] >= game.amount) {
+                lockedFundsToken[game.token] -= game.amount;
+            } else {
+                lockedFundsToken[game.token] = 0;
+            }
             emit GameCompleted(gameId, game.player, false, 0, game.token);
             return;
         }
@@ -204,7 +208,11 @@ abstract contract GameLogic is
         uint256 amount = game.amount;
         address token = game.token;
         
-        lockedFundsToken[token] -= amount;
+        if (lockedFundsToken[token] >= amount) {
+            lockedFundsToken[token] -= amount;
+        } else {
+            lockedFundsToken[token] = 0;
+        }
 
         if (token == address(0)) {
             (bool success, ) = payable(msg.sender).call{value: amount}("");

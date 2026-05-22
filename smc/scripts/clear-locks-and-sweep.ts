@@ -1,21 +1,40 @@
 import { ethers, upgrades, network } from "hardhat";
+import { formatUnits } from "ethers";
 import fs from "fs";
 import path from "path";
 
-async function main() {
-  const PROXY_ADDRESS = process.env.PROXY_ADDRESS;
-  if (!PROXY_ADDRESS) throw new Error("Please set PROXY_ADDRESS");
+const PROXY_ADDRESS = "0xD6c9912EB6fd064A6B8Bd5786C3cf787806EEdAb";
 
-  console.log(`Upgrading Flipen at ${PROXY_ADDRESS} on ${network.name}...`);
+const TOKEN_ADDRESSES = {
+  "USDC": "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
+  "USDT": "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
+};
+
+const ERC20_ABI = [
+  "function balanceOf(address account) view returns (uint256)",
+  "function decimals() view returns (uint8)"
+];
+
+async function main() {
+  console.log("=== STARTING UPGRADE, LOCK CLEARANCE & SWEEP ===");
+  console.log(`Network: ${network.name}`);
+  console.log(`Proxy Contract Address: ${PROXY_ADDRESS}`);
+
+  const [admin] = await ethers.getSigners();
+  console.log(`Admin/Owner Address: ${admin.address}`);
+
+  // 1. Upgrade the Smart Contract to the new version with emergencyClearLockedFunds
+  console.log("\n[1] Upgrading smart contract implementation...");
   const Flipen = await ethers.getContractFactory("Flipen");
   
   const upgraded = await upgrades.upgradeProxy(PROXY_ADDRESS, Flipen);
   await upgraded.waitForDeployment();
 
   const implementationAddress = await upgrades.erc1967.getImplementationAddress(PROXY_ADDRESS);
-  console.log("New Implementation at:", implementationAddress);
+  console.log(`Contract upgraded! New Implementation: ${implementationAddress}`);
 
-  // SYNC TO FRONTEND
+  // 2. Synchronize frontend ABI and addresses
+  console.log("\n[2] Syncing new implementation with frontend...");
   const frontendContractsDir = path.join(__dirname, "../../FE/contracts");
   const frontendTsPath = path.join(frontendContractsDir, "addresses.ts");
   
@@ -32,14 +51,13 @@ async function main() {
     }
   }
 
-  // Update implementation address for current network
   if (!currentAddresses[network.name]) {
     currentAddresses[network.name] = { proxyAddress: PROXY_ADDRESS };
   }
   currentAddresses[network.name].implementationAddress = implementationAddress;
   currentAddresses[network.name].lastUpgradedAt = new Date().toISOString();
 
-  // Generate updated TypeScript file content
+  // Generate updated TypeScript addresses file
   const tsContent = `// Auto-generated file - Do not edit manually
 // Generated on: ${new Date().toISOString()}
 
@@ -126,17 +144,53 @@ export const getFeeCurrency = (chainId: number, symbol: string): \`0x\${string}\
 `;
 
   fs.writeFileSync(frontendTsPath, tsContent);
-  console.log(`Frontend addresses updated: ${frontendTsPath}`);
+  console.log(`Frontend addresses synced to: ${frontendTsPath}`);
 
   // Update ABI
   const abiFilePath = path.join(frontendContractsDir, `${network.name}-abi.json`);
   fs.writeFileSync(abiFilePath, Flipen.interface.formatJson());
   console.log(`Contract ABI updated in frontend: ${abiFilePath}`);
 
-  console.log("✅ Upgrade and Frontend Sync successful!");
+  // 3. Clear locked mapping balances
+  console.log("\n[3] Clearing locked funds mapping for USDC and USDT...");
+  const contract = Flipen.attach(PROXY_ADDRESS) as any;
+
+  for (const [symbol, tokenAddr] of Object.entries(TOKEN_ADDRESSES)) {
+    console.log(`Clearing lock for ${symbol} (${tokenAddr})...`);
+    const tx = await contract.emergencyClearLockedFunds(tokenAddr);
+    await tx.wait();
+    console.log(`Lock cleared for ${symbol}!`);
+
+    // Verify lock is indeed 0 on-chain
+    const lockedAmount = await contract.lockedFundsToken(tokenAddr);
+    console.log(`On-chain locked amount for ${symbol} is now: ${lockedAmount.toString()}`);
+  }
+
+  // 4. Sweep remaining bankroll
+  console.log("\n[4] Sweeping remaining balances to admin wallet...");
+  for (const [symbol, tokenAddr] of Object.entries(TOKEN_ADDRESSES)) {
+    const tokenContract = new ethers.Contract(tokenAddr, ERC20_ABI, admin);
+    const decimals = await tokenContract.decimals();
+    const balance = await tokenContract.balanceOf(PROXY_ADDRESS);
+    
+    console.log(`Contract ${symbol} balance: ${formatUnits(balance, decimals)}`);
+
+    if (balance > 0n) {
+      console.log(`Withdrawing ${formatUnits(balance, decimals)} ${symbol} to admin...`);
+      const tx = await contract.withdrawToken(tokenAddr, balance, false, 0);
+      await tx.wait();
+      console.log(`${symbol} swept successfully to ${admin.address}!`);
+    } else {
+      console.log(`No balance left for ${symbol} to sweep.`);
+    }
+  }
+
+  console.log("\n=== ALL STABLECOINS LIBERATED AND SWEPT SUCCESSFULLY ===");
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });

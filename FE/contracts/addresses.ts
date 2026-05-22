@@ -1,5 +1,5 @@
 // Auto-generated file - Do not edit manually
-// Generated on: 2026-05-21T18:36:07.261Z
+// Generated on: 2026-05-22T13:06:52.281Z
 
 export const contractAddresses: any = {
   "sepolia": {
@@ -13,12 +13,12 @@ export const contractAddresses: any = {
   },
   "celo": {
     "proxyAddress": "0xD6c9912EB6fd064A6B8Bd5786C3cf787806EEdAb",
-    "implementationAddress": "0x3ca2A4aE913EBdeFa455ee5C49800d3E55AeE6dA",
+    "implementationAddress": "0xE2F765Ca6732B1A6f677e0B71BA7d1E363d60256",
     "deployedAt": "2026-04-03T05:47:21.729Z",
     "deployer": "0x8a371e00cd51E2BE005B86EF73C5Ee9Ef6d23FeB",
     "messengerAddress": "0x9a82055d6C4Ad4C33734A22DbCD43FD8aE4bE097",
     "messengerImplementationAddress": "0x664431647b4Bff1bB0626bF77961ca17e233e28A",
-    "lastUpgradedAt": "2026-05-21T18:36:07.261Z"
+    "lastUpgradedAt": "2026-05-22T13:06:52.281Z"
   }
 };
 

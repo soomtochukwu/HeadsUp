@@ -22,6 +22,7 @@ const ADMIN_ABI = [
   { "type": "function", "name": "pause", "stateMutability": "nonpayable", "inputs": [], "outputs": [] },
   { "type": "function", "name": "unpause", "stateMutability": "nonpayable", "inputs": [], "outputs": [] },
   { "type": "function", "name": "withdrawCELO", "stateMutability": "nonpayable", "inputs": [{ "type": "uint256", "name": "amount" }, { "type": "bool", "name": "autoCancel" }, { "type": "uint256", "name": "lookback" }], "outputs": [] },
+  { "type": "function", "name": "emergencyCancelPendingGames", "stateMutability": "nonpayable", "inputs": [{ "type": "address", "name": "token" }, { "type": "uint256", "name": "lookback" }], "outputs": [] },
   { "type": "function", "name": "withdrawToken", "stateMutability": "nonpayable", "inputs": [{ "type": "address", "name": "token" }, { "type": "uint256", "name": "amount" }, { "type": "bool", "name": "autoCancel" }, { "type": "uint256", "name": "lookback" }], "outputs": [] },
   { "type": "function", "name": "lockedFundsToken", "stateMutability": "view", "inputs": [{ "type": "address", "name": "token" }], "outputs": [{ "type": "uint256" }] },
   { "type": "function", "name": "updateBetLimits", "stateMutability": "nonpayable", "inputs": [{ "type": "uint256", "name": "newMinBet" }, { "type": "uint256", "name": "newMaxBet" }], "outputs": [] },
@@ -48,7 +49,7 @@ const ERC20_BALANCE_ABI = [
   { "type": "function", "name": "decimals", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "uint8" }] }
 ] as const
 
-const BankrollRow = ({ symbol, tokenAddress, proxyAddress, isCorrectChain }: { symbol: string, tokenAddress: string, proxyAddress?: string, isCorrectChain: boolean }) => {
+function BankrollRow({ symbol, tokenAddress, proxyAddress, isCorrectChain }: { symbol: string, tokenAddress: string, proxyAddress?: string, isCorrectChain: boolean }) {
   const { data: balance } = useReadContract({
     address: tokenAddress as `0x${string}`,
     abi: ERC20_BALANCE_ABI,
@@ -71,8 +72,26 @@ const BankrollRow = ({ symbol, tokenAddress, proxyAddress, isCorrectChain }: { s
     functionName: 'decimals',
     query: { enabled: !!tokenAddress && !!isCorrectChain, staleTime: Infinity }
   })
-  
+
+  const { writeContractAsync } = useWriteContract()
+
   const available = (balance !== undefined && locked !== undefined) ? ((balance as bigint) > (locked as bigint) ? (balance as bigint) - (locked as bigint) : BigInt(0)) : balance;
+
+  const handleEmergencyCancel = async () => {
+    if (!proxyAddress || !isCorrectChain) return;
+    try {
+      await writeContractAsync({
+        address: proxyAddress as `0x${string}`,
+        abi: ADMIN_ABI,
+        functionName: 'emergencyCancelPendingGames',
+        args: [tokenAddress as `0x${string}`, BigInt(5000)],
+      });
+      alert(`Emergency cancel initiated for ${symbol}`);
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to cancel games: " + err.message);
+    }
+  }
 
   return (
     <div className="flex justify-between items-center border-b border-white/5 pb-2 last:border-0 last:pb-0">
@@ -87,6 +106,16 @@ const BankrollRow = ({ symbol, tokenAddress, proxyAddress, isCorrectChain }: { s
         <span className="text-xl font-black text-gold">
           {available !== undefined ? parseFloat(formatUnits(available as bigint, decimals || 18)).toFixed(4) : "---"}
         </span>
+        {locked !== undefined && (locked as bigint) > BigInt(0) && (
+          <Button 
+            onClick={handleEmergencyCancel} 
+            size="sm" 
+            variant="destructive" 
+            className="h-6 text-[10px] px-2 mt-1 bg-red-900/40 hover:bg-red-600/60 text-red-400 border border-red-500/30 transition-all shadow-md"
+          >
+            Cancel Stuck Games & Liberate
+          </Button>
+        )}
       </div>
     </div>
   )
@@ -293,6 +322,22 @@ export default function AdminPage() {
     </ThemeProvider>
   )
 
+  const handleEmergencyCancelCelo = async () => {
+    if (!proxyAddress || !isCorrectChain) return;
+    try {
+      await writeContractAsync({
+        address: proxyAddress as `0x${string}`,
+        abi: ADMIN_ABI,
+        functionName: 'emergencyCancelPendingGames',
+        args: ['0x0000000000000000000000000000000000000000', BigInt(5000)],
+      });
+      alert(`Emergency cancel initiated for CELO`);
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to cancel CELO games: " + err.message);
+    }
+  }
+
   return (
     <ThemeProvider defaultTheme="dark">
       <div className="min-h-screen bg-background text-foreground relative flex flex-col h-[100dvh] overflow-hidden">
@@ -325,6 +370,16 @@ export default function AdminPage() {
                       <span className="text-xl font-black text-gold">
                         {celoBankroll ? parseFloat(formatUnits(((celoBankroll.value as bigint) > ((celoLocked as bigint) || BigInt(0)) ? (celoBankroll.value as bigint) - ((celoLocked as bigint) || BigInt(0)) : BigInt(0)), celoBankroll.decimals)).toFixed(4) : "---"}
                       </span>
+                      {celoLocked !== undefined && (celoLocked as bigint) > BigInt(0) && (
+                        <Button 
+                          onClick={handleEmergencyCancelCelo} 
+                          size="sm" 
+                          variant="destructive" 
+                          className="h-6 text-[10px] px-2 mt-1 bg-red-900/40 hover:bg-red-600/60 text-red-400 border border-red-500/30 transition-all shadow-md"
+                        >
+                          Cancel Stuck Games & Liberate
+                        </Button>
+                      )}
                     </div>
                   </div>
                   {tokens.map(t => (
