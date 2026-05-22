@@ -49,7 +49,7 @@ const ERC20_BALANCE_ABI = [
   { "type": "function", "name": "decimals", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "uint8" }] }
 ] as const
 
-function BankrollRow({ symbol, tokenAddress, proxyAddress, isCorrectChain, decimals }: { symbol: string, tokenAddress: string, proxyAddress?: string, isCorrectChain: boolean, decimals: number }) {
+function BankrollRow({ symbol, tokenAddress, proxyAddress, isCorrectChain }: { symbol: string, tokenAddress: string, proxyAddress?: string, isCorrectChain: boolean }) {
   const { data: balance } = useReadContract({
     address: tokenAddress as `0x${string}`,
     abi: ERC20_BALANCE_ABI,
@@ -66,7 +66,13 @@ function BankrollRow({ symbol, tokenAddress, proxyAddress, isCorrectChain, decim
     query: { enabled: !!proxyAddress && !!isCorrectChain, refetchInterval: 5000 }
   })
 
-  
+  const { data: decimals } = useReadContract({
+    address: tokenAddress as `0x${string}`,
+    abi: ERC20_BALANCE_ABI,
+    functionName: 'decimals',
+    query: { enabled: !!tokenAddress && !!isCorrectChain, staleTime: Infinity }
+  })
+
   const { writeContractAsync } = useWriteContract()
 
   const available = (balance !== undefined && locked !== undefined) ? ((balance as bigint) > (locked as bigint) ? (balance as bigint) - (locked as bigint) : BigInt(0)) : balance;
