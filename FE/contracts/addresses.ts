@@ -1,5 +1,5 @@
 // Auto-generated file - Do not edit manually
-// Generated on: 2026-05-21T19:17:40.363Z
+// Generated on: 2026-05-22T13:06:52.281Z
 
 export const contractAddresses: any = {
   "sepolia": {
@@ -18,7 +18,7 @@ export const contractAddresses: any = {
     "deployer": "0x8a371e00cd51E2BE005B86EF73C5Ee9Ef6d23FeB",
     "messengerAddress": "0x9a82055d6C4Ad4C33734A22DbCD43FD8aE4bE097",
     "messengerImplementationAddress": "0x664431647b4Bff1bB0626bF77961ca17e233e28A",
-    "lastUpgradedAt": "2026-05-21T19:17:40.363Z"
+    "lastUpgradedAt": "2026-05-22T13:06:52.281Z"
   }
 };
 
@@ -64,11 +64,39 @@ export const getTokenSymbol = (chainId: number, address: string): string => {
   return "ERC20";
 };
 
-export const getFeeCurrency = (chainId: number, isVip: boolean = false): `0x${string}` => {
-  if (isVip) {
-    return "0x0000000000000000000000000000000000000000" as `0x${string}`;
+/**
+ * Fee currency adapters for MiniPay fee abstraction.
+ * Tokens with adapters (e.g. USDC, USDT with 6 decimals) use the adapter address as feeCurrency.
+ * Tokens without adapters (e.g. USDm with 18 decimals) use their own token address as feeCurrency.
+ * See: https://docs.minipay.xyz/technical-references/send-transaction.html
+ */
+export const FEE_CURRENCY_ADAPTERS: Record<number, Record<string, `0x${string}` | null>> = {
+  42220: {
+    "USDm": null,   // 18 decimals – use token address directly
+    "cUSD": null,    // 18 decimals – use token address directly
+    "USDC": "0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B",  // 6 decimals – needs adapter
+    "USDT": "0x0E2A3e05bc9A16F5292A6170456A710cb89C6f72",  // 6 decimals – needs adapter
+  },
+  11142220: {
+    "USDm": null,   // 18 decimals – use token address directly
+    "cUSD": null,    // 18 decimals – use token address directly
+    "USDC": "0x4822e58de6f5e485eF90df51C41CE01721331dC0",  // 6 decimals – needs adapter
+    "USDT": null,    // testnet USDT is 18 decimals
   }
-  const chainTokens = TOKEN_ADDRESSES[chainId];
-  if (!chainTokens) return "0x0000000000000000000000000000000000000000" as `0x${string}`;
-  return (chainTokens["USDm"] || chainTokens["cUSD"] || "0x0000000000000000000000000000000000000000") as `0x${string}`;
+};
+
+/**
+ * Get the feeCurrency value to use for a given token on a given chain.
+ * Returns the adapter address if one exists, otherwise the token address itself.
+ */
+export const getFeeCurrency = (chainId: number, symbol: string): `0x${string}` | undefined => {
+  const adapters = FEE_CURRENCY_ADAPTERS[chainId];
+  const tokens = TOKEN_ADDRESSES[chainId];
+  if (!adapters || !tokens) return undefined;
+
+  const adapter = adapters[symbol];
+  if (adapter) return adapter;             // Use adapter address
+  const tokenAddr = tokens[symbol];
+  if (tokenAddr) return tokenAddr;         // Use token address directly
+  return undefined;
 };
