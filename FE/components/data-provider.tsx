@@ -19,7 +19,7 @@ export interface SavedGameEvent {
   txHash: string
   blockNumber: number
   token: string
-  status: 'PENDING' | 'RESOLVED'
+  status: 'PENDING' | 'RESOLVED' | 'CANCELLED' | 'EXPIRED'
   method: string
   chainId: number
 }
@@ -88,7 +88,7 @@ export function FlipenDataProvider({ children }: { children: React.ReactNode }) 
       while (toBlock >= birth && currentTaskId === syncTaskRef.current) {
         console.log(`[GLOBAL-SYNC] Fetching all players from block ${fromBlock}`)
         
-        const [reqLogs, resLogs] = await Promise.all([
+        const [reqLogs, resLogs, compLogs] = await Promise.all([
           publicClient.getLogs({
             address: proxyAddress,
             event: { type: 'event', name: 'GameRequested', inputs: [{type:'uint256', name:'requestId', indexed:true},{type:'address', name:'player', indexed:true},{type:'uint256', name:'amount', indexed:false},{type:'uint8', name:'playerChoice', indexed:false},{type:'uint256', name:'commitBlock', indexed:false},{type:'address', name:'token', indexed:false},{type:'address', name:'referrer', indexed:false}] },
@@ -98,15 +98,23 @@ export function FlipenDataProvider({ children }: { children: React.ReactNode }) 
             address: proxyAddress,
             event: { type: 'event', name: 'GameResult', inputs: [{type:'uint256', name:'requestId', indexed:true},{type:'address', name:'player', indexed:true},{type:'uint256', name:'amount', indexed:false},{type:'uint8', name:'playerChoice', indexed:false},{type:'uint8', name:'result', indexed:false},{type:'bool', name:'won', indexed:false},{type:'uint256', name:'payout', indexed:false},{type:'uint256', name:'randomNumber', indexed:false},{type:'uint256', name:'timestamp', indexed:false},{type:'address', name:'token', indexed:false}] },
             fromBlock, toBlock
+          }),
+          publicClient.getLogs({
+            address: proxyAddress,
+            // GameCompleted fires for: normal resolve, cancellation, and expiration
+            event: { type: 'event', name: 'GameCompleted', inputs: [{type:'uint256', name:'requestId', indexed:true},{type:'address', name:'player', indexed:true},{type:'bool', name:'won', indexed:false},{type:'uint256', name:'payout', indexed:false},{type:'address', name:'token', indexed:false}] },
+            fromBlock, toBlock
           })
         ])
 
+        // --- GameRequested: seed PENDING entries (never overwrite a terminal status) ---
         reqLogs.forEach(log => {
           try {
             const decoded = decodeEventLog({ abi: contractABI as any, data: log.data, topics: log.topics }) as any
             const requestId = decoded.args.requestId.toString()
-            // Always prefer existing RESOLVED data
-            if (activitiesRef.current.get(requestId)?.status === 'RESOLVED') return
+            const existing = activitiesRef.current.get(requestId)
+            // Skip if we already have a terminal status from a later log
+            if (existing && existing.status !== 'PENDING') return
 
             activitiesRef.current.set(requestId, {
               requestId,
@@ -127,6 +135,7 @@ export function FlipenDataProvider({ children }: { children: React.ReactNode }) 
           } catch (e) {}
         })
 
+        // --- GameResult: marks a game as RESOLVED with full outcome data ---
         resLogs.forEach(log => {
           try {
             const decoded = decodeEventLog({ abi: contractABI as any, data: log.data, topics: log.topics }) as any
@@ -151,6 +160,43 @@ export function FlipenDataProvider({ children }: { children: React.ReactNode }) 
           } catch (e) {}
         })
 
+        // --- GameCompleted: fired for cancellations & expirations (no GameResult emitted) ---
+        // If we already have a RESOLVED entry for this requestId (normal win/loss), skip it.
+        // Otherwise determine: payout > 0 → CANCELLED (refunded), payout = 0 → EXPIRED.
+        compLogs.forEach(log => {
+          try {
+            const decoded = decodeEventLog({ abi: contractABI as any, data: log.data, topics: log.topics }) as any
+            const requestId = decoded.args.requestId.toString()
+            const existing = activitiesRef.current.get(requestId)
+
+            // A RESOLVED entry means GameResult was also emitted — this is a normal game, skip
+            if (existing?.status === 'RESOLVED') return
+
+            const payout = BigInt(decoded.args.payout.toString())
+            const newStatus = payout > BigInt(0) ? 'CANCELLED' : 'EXPIRED'
+
+            activitiesRef.current.set(requestId, {
+              // Preserve any prior GameRequested data (player choice, amount) if available
+              ...(existing ?? {}),
+              requestId,
+              player: decoded.args.player || getAddress(`0x${log.topics[2]!.slice(26)}`),
+              won: false,
+              payout: decoded.args.payout.toString(),
+              txHash: log.transactionHash,
+              blockNumber: Number(log.blockNumber),
+              token: decoded.args.token,
+              status: newStatus,
+              method: existing?.method ?? 'flipCoin',
+              chainId: activeChainId,
+              // Carry over fields that may not be in GameCompleted
+              amount: existing?.amount ?? '0',
+              playerChoice: existing?.playerChoice ?? 0,
+              result: null,
+              timestamp: existing?.timestamp ?? Math.floor(Date.now() / 1000),
+            } as any)
+          } catch (e) {}
+        })
+
         // Sync local state with the global ref Map
         setActivities(Array.from(activitiesRef.current.values()).sort((a, b) => b.blockNumber - a.blockNumber))
 
@@ -172,7 +218,9 @@ export function FlipenDataProvider({ children }: { children: React.ReactNode }) 
     const handler = () => { refetchContractStats(); sync(false) }
     const unwatch1 = publicClient.watchContractEvent({ address: proxyAddress, abi: contractABI as any, eventName: 'GameResult', onLogs: handler })
     const unwatch2 = publicClient.watchContractEvent({ address: proxyAddress, abi: contractABI as any, eventName: 'GameRequested', onLogs: handler })
-    return () => { unwatch1(); unwatch2() }
+    // Also watch GameCompleted so cancellations/expirations update the UI in real-time
+    const unwatch3 = publicClient.watchContractEvent({ address: proxyAddress, abi: contractABI as any, eventName: 'GameCompleted', onLogs: handler })
+    return () => { unwatch1(); unwatch2(); unwatch3() }
   }, [publicClient, proxyAddress, contractABI, sync, refetchContractStats])
 
   useEffect(() => {

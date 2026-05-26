@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ExternalLink, History, Loader2, User, RefreshCcw, ShieldAlert, CheckCircle2 } from "lucide-react"
+import { ExternalLink, History, Loader2, User, RefreshCcw, ShieldAlert, CheckCircle2, ShieldX, Clock } from "lucide-react"
 import { formatUnits } from "viem"
 import { useFlipenData } from "./data-provider"
 import { getTokenSymbol, FLIPEN_ADDRESSES } from "@/contracts/addresses"
@@ -126,6 +126,16 @@ export function GameHistory() {
                             <Loader2 className="w-3 h-3 animate-spin" />
                             <span className="text-[9px] font-black uppercase tracking-tighter">Flipping...</span>
                           </div>
+                        ) : act.status === 'CANCELLED' ? (
+                          <div className="flex items-center gap-1 text-orange-400">
+                            <ShieldX className="w-3 h-3" />
+                            <span className="text-[9px] font-black uppercase tracking-tighter">Cancelled</span>
+                          </div>
+                        ) : act.status === 'EXPIRED' ? (
+                          <div className="flex items-center gap-1 text-yellow-500/70">
+                            <Clock className="w-3 h-3" />
+                            <span className="text-[9px] font-black uppercase tracking-tighter">Expired</span>
+                          </div>
                         ) : (
                           <div className="flex items-center gap-1 text-green-400">
                             <CheckCircle2 className="w-3 h-3" />
@@ -165,6 +175,13 @@ export function GameHistory() {
                               <span className="text-[10px] text-muted-foreground font-bold uppercase animate-pulse tracking-tighter">Flipping...</span>
                             )}
                           </div>
+                        ) : act.status === 'CANCELLED' ? (
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="text-xs font-black text-orange-400 tracking-tighter">+{parseFloat(formatUnits(BigInt(act.payout), 18)).toFixed(2)}</span>
+                            <span className="text-[8px] font-bold text-orange-400/70 uppercase">{getTokenSymbol(act.chainId, act.token)} Reclaimed</span>
+                          </div>
+                        ) : act.status === 'EXPIRED' ? (
+                          <span className="text-[10px] font-black text-yellow-500/50 uppercase tracking-tighter">Expired</span>
                         ) : act.won ? (
                           <div className="flex flex-col items-end gap-0.5">
                             <span className="text-xs font-black text-green-400 tracking-tighter">+{parseFloat(formatUnits(BigInt(act.payout), 18)).toFixed(2)}</span>
