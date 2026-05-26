@@ -1,7 +1,7 @@
 "use client"
 
 import { Header } from "@/components/header"
-import { ThemeProvider } from "@/components/theme-provider"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,7 +23,7 @@ import Link from "next/link"
 
 export default function AboutPage() {
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="golden-flip-theme">
+    
       <div className="min-h-screen bg-background text-foreground relative flex flex-col h-[100dvh] overflow-hidden lg:pl-16">
         
         <div className="relative z-10 flex flex-col h-full">
@@ -253,6 +253,6 @@ export default function AboutPage() {
           </main>
         </div>
       </div>
-    </ThemeProvider>
+    
   )
 }

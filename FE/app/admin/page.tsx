@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useCallback } from "react"
-import { ThemeProvider } from "@/components/theme-provider"
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -285,18 +285,18 @@ export default function AdminPage() {
   }
 
   if (!isConnected) return (
-    <ThemeProvider defaultTheme="dark">
+    
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md text-center z-10 border-gold/20 bg-card/80 backdrop-blur-md">
           <CardHeader><ShieldCheck className="w-12 h-12 text-gold mx-auto mb-2" /><CardTitle>Flipen Admin</CardTitle></CardHeader>
           <CardContent className="flex justify-center pb-8"><ConnectButton /></CardContent>
         </Card>
       </div>
-    </ThemeProvider>
+    
   )
 
   if (!isCorrectChain) return (
-    <ThemeProvider defaultTheme="dark">
+    
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md text-center z-10 border-red-500/20 bg-red-500/5 backdrop-blur-md">
           <CardHeader><AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-2" /><CardTitle className="text-red-500">Wrong Network</CardTitle></CardHeader>
@@ -308,18 +308,18 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
-    </ThemeProvider>
+    
   )
 
   if (!isOwner && contractOwner) return (
-    <ThemeProvider defaultTheme="dark">
+    
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md text-center border-red-500/50 z-10 bg-red-500/5 backdrop-blur-md">
           <CardHeader><ShieldAlert className="w-12 h-12 text-red-500 mx-auto mb-2" /><CardTitle className="text-red-500">Access Denied</CardTitle></CardHeader>
           <CardContent className="pb-8"><p className="text-xs font-mono break-all opacity-70 mb-4 text-center">Logged in as: {address}</p><div className="flex justify-center"><ConnectButton /></div></CardContent>
         </Card>
       </div>
-    </ThemeProvider>
+    
   )
 
   const handleEmergencyCancelCelo = async () => {
@@ -339,7 +339,7 @@ export default function AdminPage() {
   }
 
   return (
-    <ThemeProvider defaultTheme="dark">
+    
       <div className="min-h-screen bg-background text-foreground relative flex flex-col h-[100dvh] overflow-hidden">
         <div className="relative z-10 flex flex-col h-full">
           <header className="border-b border-gold/20 bg-card/50 p-4">
@@ -541,6 +541,6 @@ export default function AdminPage() {
           </main>
         </div>
       </div>
-    </ThemeProvider>
+    
   )
 }
